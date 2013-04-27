@@ -8,7 +8,7 @@ std-set-1024-30.dat: insert-benchmark.exe Makefile
 	./insert-benchmark.exe "std::set" 1024 30 >std-set-1024-30.dat
 
 std-unordered_set-1024-30.dat: insert-benchmark.exe Makefile
-	./insert-benchmark.exe "std::set" 1024 30 >std-unordered_set-1024-30.dat
+	./insert-benchmark.exe "std::unordered_set" 1024 30 >std-unordered_set-1024-30.dat
 
 insert-cumulative.png: std-set-1024-30.dat std-unordered_set-1024-30.dat Makefile insert-cumulative.gnuplot
 	gnuplot insert-cumulative.gnuplot
