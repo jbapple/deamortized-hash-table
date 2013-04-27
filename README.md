@@ -14,3 +14,6 @@ If we order the insert times from slowest to fastest, it's clear that slow trie 
 
 Here the slowest insert is placed at 1 on the x axis, the second slowest at 2, and so on.
 For this experiment, the slowest hash table inserts take a large amount of time, when compared to the total time to build the hash table.
+This is even more pronounced when inserting a large number of elements:
+
+![](insert-gini-1m.png "Insert Times From Slowest to Fastest")
