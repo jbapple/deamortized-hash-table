@@ -5,4 +5,5 @@ Hash tables are usually very fast, but have some very slow operations when there
 
 ![](insert-cumulative.png "Cumulative Insert Times")
 
-The discontinuities in the `std::unordered_set` times are artifacts of rehashing.
+The discontinuities in the hash table times are artifacts of rehashing.
+The trie is a little bit slower, but it is more consistent.
