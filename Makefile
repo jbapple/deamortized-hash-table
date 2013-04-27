@@ -37,5 +37,5 @@ std-gini-avg-set-1M-100.dat: insert-gini.exe Makefile
 std-gini-avg-unordered_set-1M-100.dat: insert-gini.exe Makefile
 	./insert-gini.exe "avg" "std::unordered_set" 100000 100 >std-gini-avg-unordered_set-1M-100.dat
 
-insert-gini-1m.png: std-gini-avg-set-1M-100.dat std-gini-avg-unordered_set-1M-100.dat Makefile insert-gini-1m.gnuplot
+insert-gini-1m.png insert-gini-1m-logscale.png: std-gini-avg-set-1M-100.dat std-gini-avg-unordered_set-1M-100.dat Makefile insert-gini-1m.gnuplot
 	gnuplot insert-gini-1m.gnuplot

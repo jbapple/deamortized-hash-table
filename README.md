@@ -17,3 +17,5 @@ For this experiment, the slowest hash table inserts take a large amount of time,
 This is even more pronounced when inserting a large number of elements:
 
 ![](insert-gini-1m.png "Insert Times From Slowest to Fastest")
+
+![](insert-gini-1m-logscale.png "Insert Times From Slowest to Fastest")
