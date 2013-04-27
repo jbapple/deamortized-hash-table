@@ -8,7 +8,7 @@ template<typename T>
 std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
   const auto to_insert = unique_pseudo_random_bytes<sample_type>((size * (size+1) / 2) * samples);
   unsigned i = 0;
-  std::vector<std::pair<unsigned, double> > ans(to_insert.size());
+  std::vector<std::pair<unsigned, double> > ans;
   for (unsigned k = 0; k < samples; ++k) {
     for (unsigned j = 0; j < size; ++j) {
       const auto start = get_time();
