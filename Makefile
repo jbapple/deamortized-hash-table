@@ -14,14 +14,20 @@ std-unordered_set-1024-30.dat: insert-benchmark.exe Makefile
 	./insert-benchmark.exe "std::unordered_set" 1024 30 >std-unordered_set-1024-30.dat
 
 std-gini-set-1024-300.dat: insert-gini.exe Makefile
-	./insert-gini.exe "std::set" 1024 300 >std-gini-set-1024-300.dat
+	./insert-gini.exe "all" "std::set" 1024 300 >std-gini-set-1024-300.dat
 
 std-gini-unordered_set-1024-300.dat: insert-gini.exe Makefile
-	./insert-gini.exe "std::unordered_set" 1024 300 >std-gini-unordered_set-1024-300.dat
+	./insert-gini.exe "all" "std::unordered_set" 1024 300 >std-gini-unordered_set-1024-300.dat
+
+std-gini-avg-set-1024-300.dat: insert-gini.exe Makefile
+	./insert-gini.exe "avg" "std::set" 1024 300 >std-gini-avg-set-1024-300.dat
+
+std-gini-avg-unordered_set-1024-300.dat: insert-gini.exe Makefile
+	./insert-gini.exe "avg" "std::unordered_set" 1024 300 >std-gini-avg-unordered_set-1024-300.dat
 
 insert-cumulative.png: std-set-1024-30.dat std-unordered_set-1024-30.dat Makefile insert-cumulative.gnuplot
 	gnuplot insert-cumulative.gnuplot
 
-insert-gini.png: std-gini-set-1024-300.dat std-gini-unordered_set-1024-300.dat Makefile insert-gini.gnuplot
+insert-gini.png: std-gini-set-1024-300.dat std-gini-unordered_set-1024-300.dat std-gini-avg-set-1024-300.dat std-gini-avg-unordered_set-1024-300.dat Makefile insert-gini.gnuplot
 	gnuplot insert-gini.gnuplot
 

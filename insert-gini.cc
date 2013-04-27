@@ -31,7 +31,7 @@ std::vector<std::vector<double> > test(const unsigned size, const unsigned sampl
   return ans;
 }
 
-void print_test(std::vector<std::vector<double> > x) {
+void print_test(const std::vector<std::vector<double> >& x) {
   for (int i = 0; i < x.size(); i += 2) {
     for (int j = 0; j < x[i].size(); ++j) {
       std::cout << (x[i].size() - j) << '\t' << x[i][j] << std::endl;
@@ -42,16 +42,37 @@ void print_test(std::vector<std::vector<double> > x) {
   }
 }
 
+void print_avg(const std::vector<std::vector<double> >& x) {
+  std::vector<double> ans(x[0].size(), 0.0);
+  for (const auto& y : x) {
+    for (int i = 0; i < y.size(); ++i) {
+      ans[i] += y[i];
+    }
+  }
+  for (int i = 0; i < ans.size(); ++i) {
+    std::cout << (ans.size() - i) << '\t' << ans[i]/x.size() << std::endl;
+  }
+}
+
 int main(int argc, char ** argv) {
-  assert (4 == argc);
-  const auto size = read<unsigned>(argv[2]);
-  const auto samples = read<unsigned>(argv[3]);
-  const std::string container_type_string = argv[1];
-  
+  assert (5 == argc);
+  const auto size = read<unsigned>(argv[3]);
+  const auto samples = read<unsigned>(argv[4]);
+  const std::string container_type_string = argv[2]; 
+  const std::string plot_type = argv[1];
+ 
+  void (*f)(const std::vector<std::vector<double> >&) = nullptr;
+    
+  if ("all" == plot_type) {
+    f = print_test;
+  } else if ("avg" == plot_type) {
+    f = print_avg;
+  }
+ 
   if ("std::set" == container_type_string) {
-    print_test(test<std::set<sample_type> >(size, samples));
+    f(test<std::set<sample_type> >(size, samples));
   } else if ("std::unordered_set" == container_type_string) {
-    print_test(test<std::unordered_set<sample_type> >(size, samples));
+    f(test<std::unordered_set<sample_type> >(size, samples));
   }
 
 }
