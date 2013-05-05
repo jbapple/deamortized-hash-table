@@ -37,17 +37,20 @@ struct hasher {
     // TODO: better randomness
     const int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0) exit(1);
-    for (ssize_t fin = 0; fin < 24; fin += read(fd, reinterpret_cast<char*>(this)+fin, 24-fin)) {
+    for (ssize_t fin = 0; fin < 24; 
+         fin += read(fd, reinterpret_cast<char*>(this)+fin, 24-fin)) {
       cerr << this << '\t' << fin << endl;
     }
     cerr << endl;
     if (close(fd) < 0) exit(2);
+    a = a | 1; // a must be odd
   }
   uint64_t operator()(const __uint128_t & x) const {
     return (a * x + b) >> 64;
   }
 };
 
+// TODO: measure in-length first, to mimic sha1 API
 uint64_t hash_string(const char * in) {
   static hasher hash[64];
   unsigned max_set = 0;
@@ -57,18 +60,16 @@ uint64_t hash_string(const char * in) {
   while ((data = stream_read(&in)) > 0) {
     for (unsigned i = 0; i < 64; ++i) {
       uint64_t * buffer = reinterpret_cast<uint64_t*>(&(accum[i]));
-      if (not full[i]) {
-        full[i] = true;
+      buffer[full[i] ? 1 : 0] = data;
+      full[i] = not full[i];
+      if (full[i]) {
         max_set = std::max<unsigned>(i, max_set);
-        buffer[0] = data;
         break;
+      } else {
+        data = hash[i](accum[i]);
       }
-      full[i] = false;
-      buffer[1] = data;
-      data = hash[i](accum[i]);
     }
   }
-  //return *reinterpret_cast<uint64_t*>(&(accum[max_set]));
   return hash[max_set](accum[max_set]);
 }
 
