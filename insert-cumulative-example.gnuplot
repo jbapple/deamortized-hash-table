@@ -1,5 +1,5 @@
 set key left box
-set title "Cumulative Insert Time"
+set title "Average Cumulative Insert Time"
 set xlabel "Unique Items"
 set ylabel "Seconds"
 set xrange [0:1024]
