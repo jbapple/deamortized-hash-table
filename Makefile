@@ -39,3 +39,19 @@ std-gini-avg-unordered_set-1M-100.dat: insert-gini.exe Makefile
 
 insert-gini-1m.png insert-gini-1m-logscale.png: std-gini-avg-set-1M-100.dat std-gini-avg-unordered_set-1M-100.dat Makefile insert-gini-1m.gnuplot
 	gnuplot insert-gini-1m.gnuplot
+
+##########################
+
+insert-cumulative-example.png: std-set-example-1024-30.dat std-unordered_set-example-1024-30.dat Makefile insert-cumulative-example.gnuplot
+	gnuplot insert-cumulative-example.gnuplot
+
+std-set-example-1024-30.dat: insert-benchmark-example.exe Makefile
+	./insert-benchmark-example.exe "std::set" 1024 30 >std-set-example-1024-30.dat
+
+std-unordered_set-example-1024-30.dat: insert-benchmark-example.exe Makefile
+	./insert-benchmark-example.exe "std::unordered_set" 1024 30 >std-unordered_set-example-1024-30.dat
+
+insert-benchmark-example.exe: insert-benchmark-example.cc util.hh util.o Makefile
+	clang++ -std=c++0x insert-benchmark-example.cc util.o -o insert-benchmark-example.exe -lrt -O3 -DNDEBUG
+
+# TODO: make sure vector.push_back isn't changing benchmark results

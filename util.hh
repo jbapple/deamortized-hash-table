@@ -47,6 +47,15 @@ std::vector<T> unique_pseudo_random_bytes(const size_t n) {
   return ans;
 }
 
+template<typename T>
+T avg(const std::vector<T>& xs) {
+  const T size = static_cast<T>(xs.size());
+  T total = 0;
+  for (const auto& x : xs) {
+    total += x;
+  }
+  return total/size;
+}
 
 
 #endif
