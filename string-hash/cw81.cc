@@ -30,6 +30,8 @@ uint64_t stream_read(const char ** in) {
   return ans;
 }
 
+
+// TODO: this is Woelfel's construction. What about dietzfelbinger's?
 struct hasher {
   __uint128_t a;
   uint64_t b;
@@ -70,6 +72,7 @@ uint64_t hash_string(const char * in) {
       }
     }
   }
+  // TODO: bigger output - no need to hash down here necessarily
   return hash[max_set](accum[max_set]);
 }
 
