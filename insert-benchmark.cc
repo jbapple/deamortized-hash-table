@@ -8,7 +8,8 @@ template<typename T>
 std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
   const auto to_insert = unique_pseudo_random_bytes<sample_type>((size * (size+1) / 2) * samples);
   unsigned i = 0;
-  std::vector<std::pair<unsigned, double> > ans;
+  unsigned m = 0;
+  std::vector<std::pair<unsigned, double> > ans(size*samples);
   for (unsigned k = 0; k < samples; ++k) {
     for (unsigned j = 0; j < size; ++j) {
       const auto start = get_time();
@@ -16,7 +17,7 @@ std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsign
       for (unsigned m = 0; m < j; ++m) {
         playground.insert(to_insert[i++]);
       }
-      ans.push_back(std::make_pair(j, get_time() - start));
+      ans[m++] = std::make_pair(j, get_time() - start);
     }
   } 
   return ans;
