@@ -9,16 +9,18 @@ typedef int sample_type;
 
 template<typename T>
 std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
-  const auto to_insert = unique_pseudo_random_bytes<sample_type>(0);//((size * (size+1) / 2) * samples);
   unsigned i = 0;
-  std::vector<std::pair<unsigned, double> > ans(size * samples);
-  for (unsigned k = 0; k < samples; ++k) {
+  std::vector<std::pair<unsigned, double> > ans(size);
+  std::vector<T> playground(samples);
+  double leader = 0.0;
+  for (unsigned j = 0; j < size; ++j) { 
     const auto start = get_time();
-    T playground;
-    for (unsigned j = 0; j < size; ++j) { 
-      playground.insert(rand());
-      ans[j] = std::make_pair(j, get_time() - start);
+    for (unsigned k = 0; k < samples; ++k) {
+      playground[k].insert(rand());
     }
+    const auto here = get_time() - start; 
+    leader = std::max(leader, here);
+    ans[j] = std::make_pair(j, leader);
   } 
   return ans;
 }

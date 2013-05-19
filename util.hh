@@ -6,6 +6,7 @@
 #include <vector>
 #include <sstream>
 #include <unordered_set>
+#include <set>
 
 #include <cassert>
 
@@ -35,7 +36,7 @@ std::vector<T> unique_pseudo_random_bytes(const size_t n) {
   static const int fd = open("/dev/urandom", O_RDONLY);
   assert (fd != -1);
   std::vector<T> ans(n);
-  T samp;
+  T samp = 0;
   std::unordered_set<T> collect;
   for (size_t count = 0; count < n; ++count) {
     while (collect.find(samp) != collect.end()) {

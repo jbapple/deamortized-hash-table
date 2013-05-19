@@ -42,16 +42,38 @@ insert-gini-1m.png insert-gini-1m-logscale.png: std-gini-avg-set-1M-100.dat std-
 
 ##########################
 
-insert-cumulative-example.png: std-set-example-1024-30.dat std-unordered_set-example-1024-30.dat Makefile insert-cumulative-example.gnuplot
+insert-cumulative-example.png: std-set-example-1024-30.dat std-unordered_set-example-1024-30.dat Makefile insert-cumulative-example.gnuplot linear-example-1024-30.dat
 	gnuplot insert-cumulative-example.gnuplot
 
 std-set-example-1024-30.dat: insert-benchmark-example.exe Makefile
-	./insert-benchmark-example.exe "std::set" 1024 30 >std-set-example-1024-30.dat
+	./insert-benchmark-example.exe "std::set" 10240 30 >std-set-example-1024-30.dat
 
 std-unordered_set-example-1024-30.dat: insert-benchmark-example.exe Makefile
-	./insert-benchmark-example.exe "std::unordered_set" 1024 30 >std-unordered_set-example-1024-30.dat
+	./insert-benchmark-example.exe "std::unordered_set" 10240 30 >std-unordered_set-example-1024-30.dat
 
-insert-benchmark-example.exe: insert-benchmark-example.cc util.hh util.o Makefile
+linear-example-1024-30.dat: insert-benchmark-example.exe Makefile
+	./insert-benchmark-example.exe "linear-probing" 10240 30 >linear-example-1024-30.dat
+
+insert-benchmark-example.exe: insert-benchmark-example.cc util.hh util.o Makefile src/linear-probing.cc
 	clang++ -std=c++0x insert-benchmark-example.cc util.o -o insert-benchmark-example.exe -lrt -O3 -DNDEBUG
 
 # TODO: make sure vector.push_back isn't changing benchmark results
+# TODO: make sure reading rand values is subtracted off performance
+
+#################################
+
+
+insert-maxtime.png: std-set-maxtime-1024-30.dat std-unordered_set-maxtime-1024-30.dat Makefile insert-maxtime.gnuplot linear-maxtime-1024-30.dat
+	gnuplot insert-maxtime.gnuplot
+
+std-set-maxtime-1024-30.dat: insert-maxtime.exe Makefile
+	./insert-maxtime.exe "std::set" 100000 30 >std-set-maxtime-1024-30.dat
+
+std-unordered_set-maxtime-1024-30.dat: insert-maxtime.exe Makefile
+	./insert-maxtime.exe "std::unordered_set" 100000 30 >std-unordered_set-maxtime-1024-30.dat
+
+linear-maxtime-1024-30.dat: insert-maxtime.exe Makefile
+	./insert-maxtime.exe "linear-probing" 100000 30 >linear-maxtime-1024-30.dat
+
+insert-maxtime.exe: insert-maxtime.cc util.hh util.o Makefile src/linear-probing.cc
+	clang++ -std=c++0x insert-maxtime.cc util.o -o insert-maxtime.exe -lrt -O3 -DNDEBUG
