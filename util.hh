@@ -58,5 +58,14 @@ T avg(const std::vector<T>& xs) {
   return total/size;
 }
 
+template<typename T>
+T maximum(const std::vector<T>& xs) {
+  T ans = 0;
+  for (const auto& x : xs) {
+    ans = std::max(ans, x);
+  }
+  return ans;
+}
+
 
 #endif

@@ -5,23 +5,31 @@
 #include <set>
 #include "src/linear-probing.cc"
 
+#include <sched.h>
+
 typedef int sample_type;
 
 template<typename T>
 std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  std::vector<std::pair<unsigned, double> > ans(size);
-  std::vector<T> playground(samples);
-  double leader = 0.0;
-  for (unsigned j = 0; j < size; ++j) { 
-    const auto start = get_time();
-    for (unsigned k = 0; k < samples; ++k) {
-      playground[k].insert(rand());
-    }
-    const auto here = get_time() - start; 
-    leader = std::max(leader, here);
-    ans[j] = std::make_pair(j, leader);
-  } 
+  std::vector<std::pair<unsigned, double> > ans(size * samples); 
+  const int old_policy = sched_getscheduler(0);
+  sched_param sp, old_sp;
+  sched_getparam(0, &old_sp);
+  sp.sched_priority = sched_get_priorty_max(SCHED_FIFO);
+  set_scheduler(0, SCHED_FIFO, &sp);
+  for (unsigned k = 0; k < samples; ++k) { 
+    T playground;
+    double leader = 0.0;
+    for (unsigned j = 0; j < size; ++j) { 
+      const auto start = get_time();
+      playground.insert(rand());
+      const auto here = get_time() - start; 
+      leader = std::max(leader, here);
+      ans[j] = std::make_pair(j, leader);
+    } 
+  }
+  set_scheduler(0, old_policy, &old_sp)
   return ans;
 }
 
