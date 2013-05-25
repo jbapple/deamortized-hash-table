@@ -77,3 +77,20 @@ linear-maxtime-1024-30.dat: insert-maxtime.exe Makefile
 
 insert-maxtime.exe: insert-maxtime.cc util.hh util.o Makefile src/linear-probing.cc
 	clang++ -std=c++0x insert-maxtime.cc util.o -o insert-maxtime.exe -lrt -O3 -DNDEBUG
+
+########################################
+
+lookup-maxtime.png: lookup-std-set-maxtime-1024-30.dat lookup-std-unordered_set-maxtime-1024-30.dat Makefile lookup-maxtime.gnuplot lookup-linear-maxtime-1024-30.dat
+	gnuplot lookup-maxtime.gnuplot
+
+lookup-std-set-maxtime-1024-30.dat: lookup-maxtime.exe Makefile
+	sudo ./lookup-maxtime.exe "std::set" 100000 100 >lookup-std-set-maxtime-1024-30.dat
+
+lookup-std-unordered_set-maxtime-1024-30.dat: lookup-maxtime.exe Makefile
+	sudo ./lookup-maxtime.exe "std::unordered_set" 100000 100 >lookup-std-unordered_set-maxtime-1024-30.dat
+
+lookup-linear-maxtime-1024-30.dat: lookup-maxtime.exe Makefile
+	sudo ./lookup-maxtime.exe "linear-probing" 100000 100 >lookup-linear-maxtime-1024-30.dat
+
+lookup-maxtime.exe: lookup-maxtime.cc util.hh util.o Makefile src/linear-probing.cc
+	clang++ -std=c++0x lookup-maxtime.cc util.o -o lookup-maxtime.exe -lrt -O3 -DNDEBUG
