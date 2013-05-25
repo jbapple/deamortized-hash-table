@@ -12,12 +12,22 @@ typedef int sample_type;
 template<typename T>
 std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  std::vector<std::pair<unsigned, double> > ans(size * samples); 
+  std::vector<std::pair<unsigned, double> > ans;//(size * samples); 
   const int old_policy = sched_getscheduler(0);
   sched_param sp, old_sp;
   sched_getparam(0, &old_sp);
-  sp.sched_priority = sched_get_priorty_max(SCHED_FIFO);
-  set_scheduler(0, SCHED_FIFO, &sp);
+  sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
+  if (-1 == sched_setscheduler(0, SCHED_FIFO, &sp)) {
+    std::cerr << "can't set realtime" << std::endl;
+    exit(1);
+  }
+  cpu_set_t aff;
+  CPU_ZERO(&aff);
+  CPU_SET(0, &aff);
+  if (-1 == sched_setaffinity(0, sizeof(cpu_set_t), &aff)) {
+    std::cerr << "can't set affinity" << std::endl;
+    exit(1);
+  }
   for (unsigned k = 0; k < samples; ++k) { 
     T playground;
     double leader = 0.0;
@@ -26,10 +36,10 @@ std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsign
       playground.insert(rand());
       const auto here = get_time() - start; 
       leader = std::max(leader, here);
-      ans[j] = std::make_pair(j, leader);
+      ans.push_back(std::make_pair(j, leader));
     } 
   }
-  set_scheduler(0, old_policy, &old_sp)
+  sched_setscheduler(0, old_policy, &old_sp);
   return ans;
 }
 

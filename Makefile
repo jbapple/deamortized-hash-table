@@ -67,13 +67,13 @@ insert-maxtime.png: std-set-maxtime-1024-30.dat std-unordered_set-maxtime-1024-3
 	gnuplot insert-maxtime.gnuplot
 
 std-set-maxtime-1024-30.dat: insert-maxtime.exe Makefile
-	./insert-maxtime.exe "std::set" 100000 30 >std-set-maxtime-1024-30.dat
+	sudo ./insert-maxtime.exe "std::set" 100000 100 >std-set-maxtime-1024-30.dat
 
 std-unordered_set-maxtime-1024-30.dat: insert-maxtime.exe Makefile
-	./insert-maxtime.exe "std::unordered_set" 100000 30 >std-unordered_set-maxtime-1024-30.dat
+	sudo ./insert-maxtime.exe "std::unordered_set" 100000 100 >std-unordered_set-maxtime-1024-30.dat
 
 linear-maxtime-1024-30.dat: insert-maxtime.exe Makefile
-	./insert-maxtime.exe "linear-probing" 100000 30 >linear-maxtime-1024-30.dat
+	sudo ./insert-maxtime.exe "linear-probing" 100000 100 >linear-maxtime-1024-30.dat
 
 insert-maxtime.exe: insert-maxtime.cc util.hh util.o Makefile src/linear-probing.cc
 	clang++ -std=c++0x insert-maxtime.cc util.o -o insert-maxtime.exe -lrt -O3 -DNDEBUG
