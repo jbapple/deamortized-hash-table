@@ -12,3 +12,25 @@ double get_time() {
 }
 
 
+high_priority::high_priority() : old_policy(sched_getscheduler(0)), old_sp() {
+  sched_getparam(0, &old_sp);
+  sched_param sp;
+  sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
+  if (-1 == sched_setscheduler(0, SCHED_FIFO, &sp)) {
+    throw "can't set realtime";
+    //std::cerr << "can't set realtime" << std::endl;
+    //exit(1);
+  }
+  cpu_set_t aff;
+  CPU_ZERO(&aff);
+  CPU_SET(0, &aff);
+  if (-1 == sched_setaffinity(0, sizeof(cpu_set_t), &aff)) {
+    throw "can't set affinity";
+    //std::cerr << "can't set affinity" << std::endl;
+    //exit(1);
+  }
+}
+
+high_priority::~high_priority() {
+  sched_setscheduler(0, old_policy, &old_sp);
+}

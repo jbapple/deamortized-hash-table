@@ -14,6 +14,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+struct high_priority {
+  const int old_policy;
+  sched_param old_sp;
+  high_priority();
+  ~high_priority();
+};
 
 // reads a T from the string argument
 template<typename T>
