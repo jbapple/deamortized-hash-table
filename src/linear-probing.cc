@@ -30,7 +30,7 @@ private:
 
   // find a key in a nonempty table
   size_t locate(const Key& k) {
-    assert (nullptr != data); assert (capacity > 0); assert (0 == (cap & capacity-1));
+    assert (nullptr != data); assert (capacity > 0); assert (0 == (capacity & capacity-1));
     const auto cap_mask = capacity-1;
     auto h = hash(k) & (cap_mask);
     while (true) {
@@ -136,7 +136,7 @@ public:
       return nullptr;
     }
     const auto i = locate(k);
-    if (FULL == data[i]) {
+    if (FULL == data[i].status) {
       return &data[i].key;
     }
     return nullptr;

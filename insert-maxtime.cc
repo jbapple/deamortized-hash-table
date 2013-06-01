@@ -10,24 +10,10 @@
 typedef int sample_type;
 
 template<typename T>
-std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
+std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples, const unsigned proc) {
   unsigned i = 0;
   std::vector<std::pair<unsigned, double> > ans;//(size * samples); 
-  const int old_policy = sched_getscheduler(0);
-  sched_param sp, old_sp;
-  sched_getparam(0, &old_sp);
-  sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
-  if (-1 == sched_setscheduler(0, SCHED_FIFO, &sp)) {
-    std::cerr << "can't set realtime" << std::endl;
-    exit(1);
-  }
-  cpu_set_t aff;
-  CPU_ZERO(&aff);
-  CPU_SET(0, &aff);
-  if (-1 == sched_setaffinity(0, sizeof(cpu_set_t), &aff)) {
-    std::cerr << "can't set affinity" << std::endl;
-    exit(1);
-  }
+  high_priority zz;
   for (unsigned k = 0; k < samples; ++k) { 
     T playground;
     double leader = 0.0;
@@ -39,7 +25,6 @@ std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsign
       ans.push_back(std::make_pair(j, leader));
     } 
   }
-  sched_setscheduler(0, old_policy, &old_sp);
   return ans;
 }
 
@@ -54,17 +39,20 @@ void print_test(std::vector<std::pair<unsigned, double> > x) {
 }
 
 int main(int argc, char ** argv) {
-  assert (4 == argc);
-  const auto size = read<unsigned>(argv[2]);
-  const auto samples = read<unsigned>(argv[3]);
+  unsigned size = 1000;//00;
+  unsigned samples = 10000;
+  if (4 == argc) {
+    size = read<unsigned>(argv[2]);
+    samples = read<unsigned>(argv[3]);
+  }
   const std::string container_type_string = argv[1];
   
-  if ("std::set" == container_type_string) {
-    print_test(test<std::set<sample_type> >(size, samples));
+  if ("tree" == container_type_string) {
+    print_test(test<std::set<sample_type> >(size, samples, 0));
   } else if ("std::unordered_set" == container_type_string) {
-    print_test(test<std::unordered_set<sample_type> >(size, samples));
-  } else if ("linear-probing" == container_type_string) {
-    print_test(test<hash_map<sample_type> >(size, samples));
+    //print_test(test<std::unordered_set<sample_type> >(size, samples));
+  } else if ("hash" == container_type_string) {
+    print_test(test<hash_map<sample_type> >(size, samples, 1));
   }else {
     std::cerr << "No test";
   }
