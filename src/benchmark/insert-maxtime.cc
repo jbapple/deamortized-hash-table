@@ -3,14 +3,14 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <set>
-#include "src/linear-probing.cc"
+#include "linear-probing.cc"
 
 #include <sched.h>
 
 typedef int sample_type;
 
 template<typename T>
-std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples, const unsigned proc) {
+std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
   std::vector<std::pair<unsigned, double> > ans;//(size * samples); 
   high_priority zz;
@@ -39,8 +39,8 @@ void print_test(std::vector<std::pair<unsigned, double> > x) {
 }
 
 int main(int argc, char ** argv) {
-  unsigned size = 1000;//00;
-  unsigned samples = 10000;
+  unsigned size = 1000000;//00;
+  unsigned samples = 100;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
     samples = read<unsigned>(argv[3]);
@@ -48,11 +48,11 @@ int main(int argc, char ** argv) {
   const std::string container_type_string = argv[1];
   
   if ("tree" == container_type_string) {
-    print_test(test<std::set<sample_type> >(size, samples, 0));
+    print_test(test<std::set<sample_type> >(size, samples));
   } else if ("std::unordered_set" == container_type_string) {
     //print_test(test<std::unordered_set<sample_type> >(size, samples));
   } else if ("hash" == container_type_string) {
-    print_test(test<hash_map<sample_type> >(size, samples, 1));
+    print_test(test<hash_map<sample_type> >(size, samples));
   }else {
     std::cerr << "No test";
   }
