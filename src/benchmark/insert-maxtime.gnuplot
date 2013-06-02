@@ -5,6 +5,11 @@ set ylabel "Seconds"
 #set xrange [1:100000]
 set terminal png size 800, 600
 set output "insert-maxtime.png"
-#set logscale y 10
-#set logscale x 10
-plot "./insert-maxtime_tree.dat" with lines lc rgb "green" lw 2 title "tree", "./insert-maxtime_hash.dat" with lines lc rgb "red" lw 2 title "hash table", "./insert-maxtime_lazy.dat" with lines lc rgb "blue" lw 2 title "lazy hash table"
+set logscale y 10
+set logscale x 10
+plot \
+"./insert-maxtime_tree.dat" with lines lc rgb "green" lw 2 title "tree", \
+"./insert-maxtime_lazy.dat" with lines lc rgb "blue" lw 2 title "lazy hash table", \
+"./insert-maxtime_hash.dat" with lines lc rgb "red" lw 2 title "hash table", \
+"./insert-maxtime_separate.dat" with lines lc rgb "purple" lw 2 title "separate hash table", \
+"./insert-maxtime_aho.dat" with lines lc rgb "orange" lw 2 title "aho hash table"

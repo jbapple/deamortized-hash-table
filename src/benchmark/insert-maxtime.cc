@@ -41,7 +41,7 @@ void print_test(std::vector<std::pair<unsigned, double> > x) {
 
 int main(int argc, char ** argv) {
   unsigned size = 100000;//00;
-  unsigned samples = 1000;
+  unsigned samples = 100;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
     samples = read<unsigned>(argv[3]);
@@ -55,7 +55,11 @@ int main(int argc, char ** argv) {
   } else if ("hash" == container_type_string) {
     print_test(test<hash_map<sample_type> >(size, samples));
   } else if ("lazy" == container_type_string) {
-    print_test(test<quiet_map<sample_type> >(size, samples));
+    print_test(test<quiet_map<sample_type, lazy_map<sample_type> > >(size, samples));
+  } else if ("separate" == container_type_string) {
+    print_test(test<quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> > >(size, samples));
+  } else if ("aho" == container_type_string) {
+    print_test(test<quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> > >(size, samples));
   } else {
     std::cerr << "No test";
   }
