@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <set>
 #include "linear-probing.cc"
+#include "lazy-linear.cc"
 
 #include <sched.h>
 
@@ -13,7 +14,7 @@ template<typename T>
 std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
   std::vector<std::pair<unsigned, double> > ans;//(size * samples); 
-  high_priority zz;
+  //high_priority zz;
   for (unsigned k = 0; k < samples; ++k) { 
     T playground;
     double leader = 0.0;
@@ -53,7 +54,9 @@ int main(int argc, char ** argv) {
     //print_test(test<std::unordered_set<sample_type> >(size, samples));
   } else if ("hash" == container_type_string) {
     print_test(test<hash_map<sample_type> >(size, samples));
-  }else {
+  } else if ("lazy" == container_type_string) {
+    print_test(test<quiet_map<sample_type> >(size, samples));
+  } else {
     std::cerr << "No test";
   }
 
