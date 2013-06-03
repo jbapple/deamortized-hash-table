@@ -21,6 +21,7 @@ high_priority::high_priority() : old_policy(sched_getscheduler(0)), old_sp() {
     //std::cerr << "can't set realtime" << std::endl;
     //exit(1);
   }
+  /*
   cpu_set_t aff;
   CPU_ZERO(&aff);
   CPU_SET(0, &aff);
@@ -29,6 +30,7 @@ high_priority::high_priority() : old_policy(sched_getscheduler(0)), old_sp() {
     //std::cerr << "can't set affinity" << std::endl;
     //exit(1);
   }
+  */
 }
 
 high_priority::~high_priority() {

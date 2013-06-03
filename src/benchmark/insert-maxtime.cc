@@ -14,7 +14,7 @@ template<typename T>
 std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
   std::vector<std::pair<unsigned, double> > ans;//(size * samples); 
-  //high_priority zz;
+  high_priority zz;
   for (unsigned k = 0; k < samples; ++k) { 
     T playground;
     double leader = 0.0;
@@ -23,7 +23,7 @@ std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsign
       playground.insert(rand());
       const auto here = get_time() - start; 
       leader = std::max(leader, here);
-      ans.push_back(std::make_pair(j, leader));
+      std::cout << j << '\t' << leader << endl;
     } 
   }
   return ans;

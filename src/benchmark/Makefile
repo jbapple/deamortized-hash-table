@@ -1,12 +1,12 @@
 .PHONY: all
 DATS=%_hash.dat %_tree.dat %_lazy.dat %_separate.dat %_aho.dat
-.PRECIOUS: ${DATS}
+.PRECIOUS: ${DATS} insert-maxtime.exe
 
 all: insert-maxtime.png
 
 CXX=clang++
 HERE=Makefile
-CXXFLAGS=-std=c++0x -O0 -ggdb3 -DNDEBUG -I..
+CXXFLAGS=-std=c++0x -O3 -DNDEBUG -I..
 LDFLAGS=-lrt
 
 %.png: ${DATS} %.gnuplot ${HERE}
