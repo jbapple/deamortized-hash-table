@@ -8,22 +8,62 @@
 
 #include <sched.h>
 
-typedef int sample_type;
+
+
+struct some {
+  const static int some_size = 2;
+  int x[some_size];
+  static some random() {
+    some ans;
+    for (int i = 0; i < some::some_size; ++i) {
+      ans.x[i] = rand();
+    }
+    return ans;
+  }
+  bool operator==(const some& that) const {
+    for (int i = 0; i < some::some_size; ++i) {
+      if (x[i] != that.x[i]) return false;
+    }
+    return true;
+  }
+  bool operator<(const some& that) const {
+    for (int i = 0; i < some::some_size; ++i) {
+      if (x[i] < that.x[i]) return true;
+      if (x[i] > that.x[i]) return false;
+    }
+    return false;
+  }
+
+};
+
+size_t hashf(const some & x) {
+  size_t ans;
+  for (int i = 0; i < some::some_size; ++i) {
+    ans ^= x.x[i];
+  }
+  return ans;
+}
+
+size_t hash(const some & x) {
+  return hashf(x);
+}
+
+typedef some sample_type;
 
 template<typename T>
 std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
   std::vector<std::pair<unsigned, double> > ans;//(size * samples); 
-  high_priority zz;
+  //high_priority zz;
   for (unsigned k = 0; k < samples; ++k) { 
     T playground;
     double leader = 0.0;
     for (unsigned j = 0; j < size; ++j) { 
       const auto start = get_time();
-      playground.insert(rand());
+      playground.insert(some::random());
       const auto here = get_time() - start; 
       leader = std::max(leader, here);
-      std::cout << j << '\t' << leader << endl;
+      ans.push_back(make_pair(j,leader));
     } 
   }
   return ans;
@@ -40,7 +80,7 @@ void print_test(std::vector<std::pair<unsigned, double> > x) {
 }
 
 int main(int argc, char ** argv) {
-  unsigned size = 100000;//00;
+  unsigned size = 1000000;//00;
   unsigned samples = 100;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);

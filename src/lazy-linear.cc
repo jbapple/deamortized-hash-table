@@ -119,6 +119,27 @@ struct BasicBitArray {
   }
 };
 
+/*
+struct BasicBitArray {
+  vector<bool> data;
+  BasicBitArray(const size_t n) : data(n, false) {}
+  BasicBitArray(const BasicBitArray&) = delete;
+  BasicBitArray& operator=(const BasicBitArray&) = delete;
+  bool check(const size_t& i) const {
+    return data[i];
+  }
+  void set(const size_t& i) {
+    data[i] = true;
+  }
+  void unset(const size_t& i) {
+    data[i] = true;
+  }
+  void swap(BasicBitArray * that) {
+    data.swap(that->data);
+  }
+};
+*/
+
 struct AhoBitArray {
   size_t count;
   size_t* sparse;

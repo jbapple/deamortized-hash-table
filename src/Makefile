@@ -1,7 +1,7 @@
 .PHONY: benchmark
 
 HERE=Makefile
-CXX=clang++
+CXX=g++
 CXXFLAGS=-std=c++0x -O3 -DNDEBUG
 LDFLAGS=-lrt
 
