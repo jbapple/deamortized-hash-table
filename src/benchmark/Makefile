@@ -20,5 +20,5 @@ ${DATS}: %.exe ${HERE}
 	${SUDO} ./$*.exe separate >$*_separate.dat
 	${SUDO} ./$*.exe aho >$*_aho.dat
 
-%.exe: %.cc ${HERE} 
-	${CXX} ${CXXFLAGS} ../util.o $*.cc -o $@ ${LDFLAGS}
+%.exe: %.cc ${HERE}
+	${CXX} ${CXXFLAGS} ../util.o $*.cc -o $@ ${LDFLAGS} garbage
