@@ -3,6 +3,7 @@ set title "Average Maximum Insert Time"
 set xlabel "Items"
 set ylabel "Seconds"
 #set xrange [1:100000]
+#set yrange [0.0000001:0.001]
 set terminal png size 800, 600
 set output "insert-maxtime.png"
 set logscale y 10

@@ -80,8 +80,8 @@ void print_test(std::vector<std::pair<unsigned, double> > x) {
 }
 
 int main(int argc, char ** argv) {
-  unsigned size = 1000000;//00;
-  unsigned samples = 100;
+  unsigned size = 10000;//00;
+  unsigned samples = 10;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
     samples = read<unsigned>(argv[3]);

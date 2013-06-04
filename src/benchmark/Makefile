@@ -4,20 +4,21 @@ DATS=%_hash.dat %_tree.dat %_lazy.dat %_separate.dat %_aho.dat
 
 all: insert-maxtime.png
 
-CXX=g++
+CXX=clang++
 HERE=Makefile
-CXXFLAGS=-std=c++0x -O3 -DNDEBUG -I..
+CXXFLAGS=-std=c++0x -O2 -DNDEBUG -I..
 LDFLAGS=-lrt
+SUDO=
 
 %.png: ${DATS} %.gnuplot ${HERE}
 	gnuplot $*.gnuplot
 
 ${DATS}: %.exe ${HERE}
-	sudo ./$*.exe hash >$*_hash.dat
-	sudo ./$*.exe tree >$*_tree.dat
-	sudo ./$*.exe lazy >$*_lazy.dat
-	sudo ./$*.exe separate >$*_separate.dat
-	sudo ./$*.exe aho >$*_aho.dat
+	${SUDO} ./$*.exe hash >$*_hash.dat
+	${SUDO} ./$*.exe tree >$*_tree.dat
+	${SUDO} ./$*.exe lazy >$*_lazy.dat
+	${SUDO} ./$*.exe separate >$*_separate.dat
+	${SUDO} ./$*.exe aho >$*_aho.dat
 
 %.exe: %.cc ${HERE} 
 	${CXX} ${CXXFLAGS} ../util.o $*.cc -o $@ ${LDFLAGS}
