@@ -6,8 +6,8 @@ set ylabel "Seconds"
 #set yrange [0:0.00002]
 set terminal png size 800, 600
 set output "insert-maxtime.png"
-set logscale y 10
-set logscale x 10
+#set logscale y 10
+#set logscale x 10
 plot \
 "insert-maxtime.dat" using 1:2 with lines lc rgb "red" lw 1 title "separate", \
 "insert-maxtime.dat" using 1:3 with lines lc rgb "blue" lw 1 title "aho"

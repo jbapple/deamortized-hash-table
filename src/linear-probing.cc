@@ -1,6 +1,6 @@
 #include <cstdint>
 
-size_t hash(int x) {return static_cast<size_t>(x);}
+//size_t hash(int x) {return static_cast<size_t>(x);}
 
 template<typename Key, size_t up_limit = 2, size_t up_scale = 2, size_t down_limit = 8, size_t down_scale = 2, size_t deleted_limit = 3>
 struct hash_map {
@@ -32,7 +32,7 @@ private:
   size_t locate(const Key& k) {
     assert (nullptr != data); assert (capacity > 0); assert (0 == (capacity & capacity-1));
     const auto cap_mask = capacity-1;
-    auto h = hash(k) & (cap_mask);
+    auto h = hashf(k) & (cap_mask);
     while (true) {
       if (data[h].status != FULL) return h;
       if (data[h].key == k) return h;

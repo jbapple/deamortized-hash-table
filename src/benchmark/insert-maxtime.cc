@@ -7,7 +7,7 @@
 
 using namespace std;
 
-//#include "linear-probing.cc"
+#include "linear-probing.cc"
 #include "lazy-linear.cc"
 
 struct some {
@@ -51,38 +51,38 @@ size_t hash(const some & x) {
 typedef some sample_type;
 
 template<typename T, typename U>
-std::vector<std::tuple<unsigned, double, double> > test(const unsigned size, const unsigned samples) {
+void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  std::vector<std::tuple<unsigned, double, double> > ans((size * samples)); 
   high_priority zz;
-  for (unsigned k = 0; k < samples; ++k) { 
-    T p;
-    U q;
-    double l1 = 0.0, l2 = 0.0;
-    for (unsigned j = 0; j < size; ++j) { 
-      const auto x = some::random();
+  std::vector<T> p(samples);
+  std::vector<U> q(samples);
+  std::vector<double> l1(samples,0.0), l2(samples,0.0);
+  for (unsigned j = 0; j < size; ++j) { 
+    const auto x = some::random();
+    for (unsigned k = 0; k < samples; ++k) { 
       double begin, mid, end;
-      if (not (j & 1)) {
+      if ((j & 1)) {
         begin = get_time();
-        p.insert(x);
+        p[k].insert(x);
         mid = get_time(); 
-        q.insert(x);
+        q[k].insert(x);
         end = get_time();
-        l1 = std::max(l1, mid-begin);
-        l2 = std::max(l2, end-mid);
+        l1[k] = std::max(l1[k], mid-begin);
+        l2[k] = std::max(l2[k], end-mid);
       } else {
         begin = get_time();
-        q.insert(x);
+        q[k].insert(x);
         mid = get_time(); 
-        p.insert(x);
+        p[k].insert(x);
         end = get_time();
-        l2 = std::max(l2, mid-begin);
-        l1 = std::max(l1, end-mid);
+        l2[k] = std::max(l2[k], mid-begin);
+        l1[k] = std::max(l1[k], end-mid);
       }
-      ans[i++] = make_tuple(j,l1,l2);
-    } 
+    }
+    cout << j << '\t'
+         << avg(l1) << '\t'
+         << avg(l2) << endl;
   }
-  return ans;
 }
 
 void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
@@ -100,22 +100,28 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
 
 int main(int argc, char ** argv) {
   srand(0);
-  unsigned size = 10000;//00;
-  unsigned samples = 1000;
+  unsigned size = 100000;//00;
+  unsigned samples = 100;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
     samples = read<unsigned>(argv[3]);
   }
 
-  print_test(test<
+  //  print_test(
+             test<
                //std::set<sample_type>, //, std::set<sample_type> >
                quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> >
+               //hash_map<sample_type>
                ,
-               quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> >
+               //quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> >
+               //std::set<sample_type>
+               hash_map<sample_type>
 
                  >
                  
-    (size, samples));
+    (size, samples)
+               //)
+               ;
   /*
  >(size, samples));
   } else if ("aho" == container_type_string) {

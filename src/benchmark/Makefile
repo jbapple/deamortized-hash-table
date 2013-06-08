@@ -4,7 +4,7 @@ DATS=%_hash.dat %_tree.dat %_lazy.dat %_separate.dat %_aho.dat
 
 all: insert-maxtime.png
 
-CXX=clang++
+CXX=g++
 HERE=Makefile
 CXXFLAGS=-std=c++0x -O3 -DNDEBUG -I..
 LDFLAGS=-lrt
