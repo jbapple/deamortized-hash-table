@@ -37,7 +37,7 @@ struct some {
 };
 
 size_t hashf(const some & x) {
-  size_t ans;
+  size_t ans = 0;
   for (int i = 0; i < some::some_size; ++i) {
     ans ^= x.x[i];
   }
@@ -80,8 +80,9 @@ void print_test(std::vector<std::pair<unsigned, double> > x) {
 }
 
 int main(int argc, char ** argv) {
-  unsigned size = 10000;//00;
-  unsigned samples = 10;
+  srand(0);
+  unsigned size = 100000;//00;
+  unsigned samples = 1000;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
     samples = read<unsigned>(argv[3]);
