@@ -24,44 +24,6 @@ struct BasicBitArray {
   }
 };
 
-/*
-struct AhoBitArray {
-  size_t count;
-  size_t* sparse;
-  size_t* dense;
-  AhoBitArray(const size_t n) 
-  : count(0), 
-    sparse(reinterpret_cast<size_t*>(malloc(n * sizeof(size_t)))),
-    dense(reinterpret_cast<size_t*>(malloc(n * sizeof(size_t)))) {}
-
-  AhoBitArray(const AhoBitArray&) = delete;
-  AhoBitArray& operator=(const AhoBitArray&) = delete;
-  bool check(const size_t& i) const {
-    return ((sparse[i] < count) and (dense[sparse[i]] == i));
-  }
-  void set(const size_t& i) {
-    if (check(i)) return;
-    dense[count] = i;
-    sparse[i] = count;
-    ++count;
-  }
-  void unset(const size_t& i) {
-    if (not check(i)) return;
-    dense[sparse[i]] = dense[count-1];
-    sparse[dense[count-1]] = i;
-    --count;
-  }
-  void swap(AhoBitArray * that) {
-    std::swap(count, that->count);
-    std::swap(sparse, that->sparse);
-    std::swap(dense, that->dense);
-  }
-  ~AhoBitArray() {
-    free(sparse); free(dense);
-  }
-};
-*/
-
 template<typename Key, typename BitArray>
 struct lazier_map {
   struct slot {
@@ -105,33 +67,6 @@ struct lazier_map {
     return i;
   }
 
-  // i < j <= k, mod capacity
-  bool cyclic_between(const size_t& i, const size_t& j, const size_t& k) const {
-    return (((i < j) and (j <= k))
-            or ((i < j) and (k < i))
-            or ((j <= k) and (k < i)));
-  }
-
-  void displace(const Key& k, lazier_map * that, const size_t limit) {
-    auto start = locate(k);
-    if (not occupied.check(start)) return;
-    occupied[start].unset();
-    const size_t ans = start;
-    --full;
-    auto i = (start + 1) & (capacity - 1);
-    while (occupied.check(i)) {
-      const auto h = hashf(data[i].key) & (capacity - 1);
-      if (not cyclic_between(start,h,i)) {
-        occupied.set(start);
-        data[start].key = data[i].key;
-        start = i;
-        occupied.unset(i);
-        if (that and (start < limit) and i >= limit) that->place(data[start].key);
-      }
-      i = (i+1) & (capacity - 1);
-    }
-  }
-  
   void swap(lazier_map * that) {
     std::swap(data, that->data);
     std::swap(capacity, that->capacity);
