@@ -2,8 +2,8 @@
 .PRECIOUS: o1.exe o2.exe
 
 all: o1.exe o2.exe
-	time -p ./o1.exe separate >/dev/null
-	time -p ./o2.exe separate >/dev/null
+	time -p ./o1.exe
+	time -p ./o2.exe
 
 CXX=clang++
 HERE=Makefile
