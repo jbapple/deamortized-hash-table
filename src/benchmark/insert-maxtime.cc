@@ -42,17 +42,15 @@ typedef some sample_type;
 
 template<typename T>
 void test(const unsigned size, const unsigned samples) {
-  unsigned i = 0;
   for (unsigned k = 0; k < samples; ++k) { 
     T playground;
-    double leader = 0.0;
     for (unsigned j = 0; j < size; ++j) { 
       playground.insert(some::random());
     } 
   }
 }
 
-int main(int argc, char ** argv) {
+int main() {
   const unsigned size = 10000;
   const unsigned samples = 10;
   test<quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> > >(size, samples);
