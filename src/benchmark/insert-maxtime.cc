@@ -1,14 +1,7 @@
 #include "util.hh"
 
-#include <unordered_map>
-#include <unordered_set>
-#include <set>
 #include "linear-probing.cc"
 #include "lazy-linear.cc"
-
-#include <sched.h>
-
-
 
 struct some {
   const static int some_size = 2;
