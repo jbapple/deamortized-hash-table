@@ -4,7 +4,6 @@ using namespace std;
 
 double get_time() { return 0.0; }
 
-//#include "util.hh"
 
 #include "lazy-linear.cc"
 
@@ -53,11 +52,11 @@ std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsign
     T playground;
     double leader = 0.0;
     for (unsigned j = 0; j < size; ++j) { 
-      const auto start = get_time();
+      //const auto start = get_time();
       playground.insert(some::random());
-      const auto here = get_time() - start; 
-      leader = std::max(leader, here);
-      ans.push_back(make_pair(j,leader));
+      //const auto here = get_time() - start; 
+      //leader = std::max(leader, here);
+      //ans.push_back(make_pair(j,leader));
     } 
   }
   return ans;
