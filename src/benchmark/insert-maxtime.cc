@@ -1,4 +1,5 @@
 #include <vector>
+#include <cstdlib>
 
 using namespace std;
 
@@ -20,14 +21,6 @@ struct some {
     }
     return true;
   }
-  bool operator<(const some& that) const {
-    for (int i = 0; i < some::some_size; ++i) {
-      if (x[i] < that.x[i]) return true;
-      if (x[i] > that.x[i]) return false;
-    }
-    return false;
-  }
-
 };
 
 size_t hashf(const some & x) {
@@ -51,6 +44,7 @@ void test(const unsigned size, const unsigned samples) {
 }
 
 int main() {
+  srand(0);
   const unsigned size = 10000;
   const unsigned samples = 10;
   test<quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> > >(size, samples);
