@@ -44,10 +44,6 @@ size_t hashf(const some & x) {
   return ans;
 }
 
-size_t hash(const some & x) {
-  return hashf(x);
-}
-
 typedef some sample_type;
 
 template<typename T>
@@ -67,16 +63,6 @@ std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsign
     } 
   }
   return ans;
-}
-
-void print_test(std::vector<std::pair<unsigned, double> > x) {
-  std::unordered_map<unsigned, std::vector<double> > collect;    
-  for (const auto& y : x) {
-    collect[y.first].push_back(y.second);
-  }
-  for (const auto& y : collect) {
-    std::cout << y.first << '\t' << avg(y.second) << std::endl;
-  }
 }
 
 int main(int argc, char ** argv) {
