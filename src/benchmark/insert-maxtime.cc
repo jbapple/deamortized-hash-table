@@ -2,9 +2,6 @@
 
 using namespace std;
 
-double get_time() { return 0.0; }
-
-
 #include "lazy-linear.cc"
 
 struct some {
@@ -44,22 +41,15 @@ size_t hashf(const some & x) {
 typedef some sample_type;
 
 template<typename T>
-std::vector<std::pair<unsigned, double> > test(const unsigned size, const unsigned samples) {
+void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  std::vector<std::pair<unsigned, double> > ans;//(size * samples); 
-  //high_priority zz;
   for (unsigned k = 0; k < samples; ++k) { 
     T playground;
     double leader = 0.0;
     for (unsigned j = 0; j < size; ++j) { 
-      //const auto start = get_time();
       playground.insert(some::random());
-      //const auto here = get_time() - start; 
-      //leader = std::max(leader, here);
-      //ans.push_back(make_pair(j,leader));
     } 
   }
-  return ans;
 }
 
 int main(int argc, char ** argv) {
