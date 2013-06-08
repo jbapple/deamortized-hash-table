@@ -10,8 +10,8 @@ HERE=Makefile
 CXXFLAGS=-std=c++0x -DNDEBUG -I.. ../util.o insert-maxtime.cc -g
 LDFLAGS=-lrt
 
-o1.exe: insert-maxtime.cc ${HERE}
+o1.exe: insert-maxtime.cc ${HERE} ../lazy-linear.cc
 	${CXX} -O1 ${CXXFLAGS} -o $@ ${LDFLAGS}
 
-o2.exe: insert-maxtime.cc ${HERE}
+o2.exe: insert-maxtime.cc ${HERE} ../lazy-linear.cc
 	${CXX} -O2 ${CXXFLAGS} -o $@ ${LDFLAGS}

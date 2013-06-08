@@ -4,7 +4,7 @@
 #include <cassert>
 
 using namespace std;
-
+/*
 size_t hashf(int x) {return static_cast<size_t>(x);}
 
 template<typename Key>
@@ -99,6 +99,7 @@ struct lazy_map {
   }
 
 };
+*/
 
 struct BasicBitArray {
   vector<bool> data;
