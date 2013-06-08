@@ -5,6 +5,7 @@ using namespace std;
 
 #include "lazy-linear.cc"
 
+
 struct some {
   const static int some_size = 2;
   int x[some_size];
@@ -24,10 +25,11 @@ struct some {
 };
 
 size_t hashf(const some & x) {
-  size_t ans;
+  size_t ans = 0;
   for (int i = 0; i < some::some_size; ++i) {
     ans ^= x.x[i];
   }
+  
   return ans;
 }
 
@@ -38,7 +40,7 @@ void test(const unsigned size, const unsigned samples) {
   for (unsigned k = 0; k < samples; ++k) { 
     T playground;
     for (unsigned j = 0; j < size; ++j) { 
-      playground.insert(some::random());
+      playground.insert(sample_type::random());
     } 
   }
 }
