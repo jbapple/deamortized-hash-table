@@ -1,6 +1,5 @@
 #include "util.hh"
 
-#include "linear-probing.cc"
 #include "lazy-linear.cc"
 
 struct some {
