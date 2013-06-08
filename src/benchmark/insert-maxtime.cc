@@ -1,4 +1,10 @@
-#include "util.hh"
+#include <vector>
+
+using namespace std;
+
+double get_time() { return 0.0; }
+
+//#include "util.hh"
 
 #include "lazy-linear.cc"
 

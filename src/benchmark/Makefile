@@ -7,7 +7,7 @@ all: o1.exe o2.exe
 
 CXX=clang++
 HERE=Makefile
-CXXFLAGS=-std=c++0x -DNDEBUG -I.. ../util.o insert-maxtime.cc -g
+CXXFLAGS=-std=c++0x -DNDEBUG -I..  insert-maxtime.cc -g
 LDFLAGS=-lrt
 
 o1.exe: insert-maxtime.cc ${HERE} ../lazy-linear.cc
