@@ -120,7 +120,7 @@ int main(int argc, char ** argv) {
     test<table, tree>(size, samples);
     break;
   case 1:
-    test<table, try3>(size, samples);
+    test<table, try1>(size, samples);
     break;
   case 2:
     test<table, try2>(size, samples);
