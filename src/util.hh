@@ -33,7 +33,7 @@ T read(const std::string& x) {
 // get_time returns the number of CPU seconds taken by the current
 // process as a floating point number. Only works on Linux. Be sure to
 // link with -lrt.
-double get_time();
+size_t get_time();
 
 // unique_pseudo_random_bytes(n) returns n unique values from a
 // pseudo-random number generator for a POD type T
@@ -55,13 +55,13 @@ std::vector<T> unique_pseudo_random_bytes(const size_t n) {
 }
 
 template<typename T>
-T avg(const std::vector<T>& xs) {
-  const T size = static_cast<T>(xs.size());
+double avg(const std::vector<T>& xs) {
+  const double size = static_cast<double>(xs.size());
   T total = 0;
   for (const auto& x : xs) {
     total += x;
   }
-  return total/size;
+  return static_cast<double>(total)/size;
 }
 
 template<typename T>

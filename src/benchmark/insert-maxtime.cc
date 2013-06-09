@@ -53,20 +53,23 @@ typedef some sample_type;
 template<typename T, typename U>
 void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  high_priority zz;
+  //high_priority zz;
   std::vector<T> p(samples);
   std::vector<U> q(samples);
-  std::vector<double> l1(samples,0.0), l2(samples,0.0);
+  std::vector<size_t> l1(samples,0), l2(samples,0);
+  std::vector<size_t> s1(samples,0), s2(samples,0);
   for (unsigned j = 0; j < size; ++j) { 
     const auto x = some::random();
     for (unsigned k = 0; k < samples; ++k) { 
-      double begin, mid, end;
+      size_t begin, mid, end;
       if ((j & 1)) {
         begin = get_time();
         p[k].insert(x);
         mid = get_time(); 
         q[k].insert(x);
         end = get_time();
+        s1[k] += mid-begin;
+        s2[k] += end-mid;
         l1[k] = std::max(l1[k], mid-begin);
         l2[k] = std::max(l2[k], end-mid);
       } else {
@@ -75,16 +78,21 @@ void test(const unsigned size, const unsigned samples) {
         mid = get_time(); 
         p[k].insert(x);
         end = get_time();
+        s2[k] += mid-begin;
+        s1[k] += end-mid;
         l2[k] = std::max(l2[k], mid-begin);
         l1[k] = std::max(l1[k], end-mid);
       }
     }
     cout << static_cast<double>(j)/1000.0 << '\t'
-         << 1000000 * avg(l1) << '\t'
-         << 1000000 * avg(l2) << endl;
+         << avg(l1)/1000.0 << '\t'
+         << avg(l2)/1000.0 << '\t' 
+         << avg(s1)/static_cast<double>(1000 * (j+1)) << '\t'
+         << avg(s2)/static_cast<double>(1000 * (j+1)) << endl;
   }
 }
 
+/*
 void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
   std::unordered_map<unsigned, std::pair<std::vector<double>, std::vector<double> > > collect;    
   for (const auto& y : x) {
@@ -97,6 +105,7 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
               << avg(y.second.second) << std::endl;
   }
 }
+*/
 
 int main(int argc, char ** argv) {
   srand(0);

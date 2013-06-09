@@ -6,7 +6,7 @@ all: insert-maxtime.png
 
 CXX=clang++
 HERE=Makefile
-CXXFLAGS=-std=c++0x -O3 -DNDEBUG -I..
+CXXFLAGS=-std=c++0x -O0 -DNDEBUG -I.. -g
 LDFLAGS=-lrt
 SUDO=sudo
 
@@ -39,5 +39,5 @@ insert-maxtime-3.png: insert-maxtime.gnuplot insert-maxtime-3.dat ${HERE}
 	sed 's/REPLACE1/3/g' insert-maxtime.gnuplot | sed 's/REPLACE2/partially deamortized/g' | sed 's/REPLACE3/tree/g' | sed 's/COLOR1/orange/g' | sed 's/COLOR2/green/g' > insert-maxtime-3.gnuplot
 	gnuplot insert-maxtime-3.gnuplot
 
-%.exe: %.cc ${HERE}
+%.exe: %.cc ${HERE} ../util.hh ../util.cc
 	${CXX} ${CXXFLAGS} ../util.o $*.cc -o $@ ${LDFLAGS}
