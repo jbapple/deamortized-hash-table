@@ -100,7 +100,7 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
 
 int main(int argc, char ** argv) {
   srand(0);
-  unsigned size = 10000;//00;
+  unsigned size = 100000;//00;
   unsigned samples = 100;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
