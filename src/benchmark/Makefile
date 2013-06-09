@@ -32,7 +32,7 @@ insert-maxtime-1.png: insert-maxtime.gnuplot insert-maxtime-1.dat ${HERE}
 	gnuplot insert-maxtime-1.gnuplot
 
 insert-maxtime-2.png: insert-maxtime.gnuplot insert-maxtime-2.dat ${HERE}
-	sed 's/REPLACE1/2/g' insert-maxtime.gnuplot | sed 's/REPLACE2/hash table/g' | sed 's/REPLACE3/parially deamortized/g' | sed 's/COLOR1/red/g' | sed 's/COLOR2/orange/g' > insert-maxtime-2.gnuplot
+	sed 's/REPLACE1/2/g' insert-maxtime.gnuplot | sed 's/REPLACE2/hash table/g' | sed 's/REPLACE3/partially deamortized/g' | sed 's/COLOR1/red/g' | sed 's/COLOR2/orange/g' > insert-maxtime-2.gnuplot
 	gnuplot insert-maxtime-2.gnuplot
 
 insert-maxtime-3.png: insert-maxtime.gnuplot insert-maxtime-3.dat ${HERE}
