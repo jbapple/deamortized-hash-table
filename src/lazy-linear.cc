@@ -275,6 +275,10 @@ struct quiet_map {
   
   quiet_map() : here(), there(), progress(0) {}
 
+  size_t find(const Key& k) {
+    return here.locate(k);
+  }
+
   void insert(const Key& k) {
     if (0 == here.capacity) {
       Base temp(16);

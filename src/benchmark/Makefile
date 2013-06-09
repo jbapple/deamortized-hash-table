@@ -6,7 +6,7 @@ all: insert-maxtime.png
 
 CXX=clang++
 HERE=Makefile
-CXXFLAGS=-std=c++0x -O0 -DNDEBUG -I.. -g
+CXXFLAGS=-std=c++0x -O3 -DNDEBUG -I..
 LDFLAGS=-lrt
 SUDO=sudo
 

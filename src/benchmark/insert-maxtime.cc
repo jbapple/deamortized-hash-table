@@ -53,7 +53,7 @@ typedef some sample_type;
 template<typename T, typename U>
 void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  //high_priority zz;
+  high_priority zz;
   std::vector<T> p(samples);
   std::vector<U> q(samples);
   std::vector<size_t> l1(samples,0), l2(samples,0);
@@ -68,8 +68,8 @@ void test(const unsigned size, const unsigned samples) {
         mid = get_time(); 
         q[k].insert(x);
         end = get_time();
-        s1[k] += mid-begin;
-        s2[k] += end-mid;
+        s1[k] = mid-begin;
+        s2[k] = end-mid;
         l1[k] = std::max(l1[k], mid-begin);
         l2[k] = std::max(l2[k], end-mid);
       } else {
@@ -78,8 +78,8 @@ void test(const unsigned size, const unsigned samples) {
         mid = get_time(); 
         p[k].insert(x);
         end = get_time();
-        s2[k] += mid-begin;
-        s1[k] += end-mid;
+        s2[k] = mid-begin;
+        s1[k] = end-mid;
         l2[k] = std::max(l2[k], mid-begin);
         l1[k] = std::max(l1[k], end-mid);
       }
@@ -87,8 +87,58 @@ void test(const unsigned size, const unsigned samples) {
     cout << static_cast<double>(j)/1000.0 << '\t'
          << avg(l1)/1000.0 << '\t'
          << avg(l2)/1000.0 << '\t' 
-         << avg(s1)/static_cast<double>(1000 * (j+1)) << '\t'
-         << avg(s2)/static_cast<double>(1000 * (j+1)) << endl;
+         << avg(s1)/static_cast<double>(1000) << '\t'
+         << avg(s2)/static_cast<double>(1000) << endl;
+  }
+}
+
+template<typename T, typename U>
+void test_lookup(const unsigned size, const unsigned samples) {
+  void * dummy = 0;
+  unsigned i = 0;
+  //high_priority zz;
+  T p;
+  U q;
+  decltype(p.find(some::random())) pf;
+  decltype(q.find(some::random())) qf;
+  std::vector<some> x(samples, some::random());
+  for (size_t i = 0; i < samples; ++i) {
+    x[i] = some::random();
+  }
+  std::vector<size_t> l1(samples,0), l2(samples,0);
+  std::vector<size_t> s1(samples,0), s2(samples,0);
+  for (unsigned j = 0; j < size; ++j) { 
+    const auto y = some::random();
+    p.insert(y), q.insert(y);
+    for (unsigned k = 0; k < samples; ++k) { 
+      size_t begin, mid, end;
+      if ((j & 1)) {
+        begin = get_time();
+        pf = p.find(x[k]);
+        mid = get_time(); 
+        qf = q.find(x[k]);
+        end = get_time();
+        s1[k] = mid-begin;
+        s2[k] = end-mid;
+        l1[k] = std::max(l1[k], mid-begin);
+        l2[k] = std::max(l2[k], end-mid);
+      } else {
+        begin = get_time();
+        qf = q.find(x[k]);
+        mid = get_time(); 
+        pf = p.find(x[k]);
+        end = get_time();
+        s2[k] = mid-begin;
+        s1[k] = end-mid;
+        l2[k] = std::max(l2[k], mid-begin);
+        l1[k] = std::max(l1[k], end-mid);
+      }
+    }
+    cout << static_cast<double>(j)/1000.0 << '\t'
+         << avg(l1)/1000.0 << '\t'
+         << avg(l2)/1000.0 << '\t' 
+         << avg(s1)/static_cast<double>(1000) << '\t'
+         << avg(s2)/static_cast<double>(1000) << endl;
   }
 }
 
@@ -129,7 +179,7 @@ int main(int argc, char ** argv) {
     test<table, tree>(size, samples);
     break;
   case 1:
-    test<table, try1>(size, samples);
+    //test<table, try1>(size, samples);
     break;
   case 2:
     test<table, try2>(size, samples);
