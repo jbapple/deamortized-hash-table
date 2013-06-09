@@ -6,7 +6,7 @@ For instance, here is a graph of the maximum insert time of elements into a hash
 
 ![](src/benchmark/insert-maxtime-0.png "Maximum Insert Time")
 
-The hash table is much slower on its slowers insertions.
+The hash table is much slower on its slowest insertions.
 Here is a comparison between the standard hash table and a variant designed to spread the cost of the longest operations across many operations, thus reducing the maximum insert time:
 
 ![](src/benchmark/insert-maxtime-2.png "Maximum Insert Time")
