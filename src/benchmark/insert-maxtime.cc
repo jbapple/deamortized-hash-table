@@ -79,9 +79,9 @@ void test(const unsigned size, const unsigned samples) {
         l1[k] = std::max(l1[k], end-mid);
       }
     }
-    cout << j << '\t'
-         << avg(l1) << '\t'
-         << avg(l2) << endl;
+    cout << static_cast<double>(j)/1000.0 << '\t'
+         << 1000000 * avg(l1) << '\t'
+         << 1000000 * avg(l2) << endl;
   }
 }
 

@@ -1,10 +1,10 @@
 set key left box
 set title "Maximum Insert Time"
-set xlabel "Items"
-set ylabel "Seconds"
+set xlabel "Items (thousands)"
+set ylabel "Microseconds"
 #set xrange [1:100000]
 #set yrange [0:0.00002]
-set terminal png size 800, 600
+set terminal png size 640, 480
 set output "insert-maxtime-REPLACE1.png"
 #set logscale y 10
 #set logscale x 10
