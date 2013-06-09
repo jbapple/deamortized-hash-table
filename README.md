@@ -11,7 +11,7 @@ Here is a comparison between the standard hash table and a variant designed to s
 
 ![](src/benchmark/insert-maxtime-2.png "Maximum Insert Time")
 
-This is a partial deamortization of the hash table - it's performance is now reasonable not only in the amortized sense, but also in the worst-case.
+This is a partial deamortization of the hash table - its performance is now reasonable not only in the amortized sense, but also in the worst-case.
 
 Here is a zoomed-in comparison of the maximum cost of insertions in the partially deamortized hash table and the balanced binary search tree.
 As you can see, the operations still can be more expensive than in the tree:
