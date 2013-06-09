@@ -100,29 +100,54 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
 
 int main(int argc, char ** argv) {
   srand(0);
-  unsigned size = 100000;//00;
+  unsigned size = 10000;//00;
   unsigned samples = 100;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
     samples = read<unsigned>(argv[3]);
   }
+  const unsigned which = read<unsigned>(argv[1]);
 
+  typedef hash_map<sample_type> table;
+  typedef std::set<sample_type> tree;
+
+  typedef quiet_map<sample_type, lazy_map<sample_type> > try1;
+  typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> > try2;
+  typedef quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> > try3;
+
+  switch(which) {
+  case 0:
+    test<table, tree>(size, samples);
+    break;
+  case 1:
+    test<table, try3>(size, samples);
+    break;
+  case 2:
+    test<table, try2>(size, samples);
+    break;
+  case 3:
+    test<try2, tree>(size, samples);
+    break;
+  }
+
+  /*
   //  print_test(
              test<
                //std::set<sample_type>, //, std::set<sample_type> >
                quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> >
                //hash_map<sample_type>
                ,
-               //quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> >
+               quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> >
                //std::set<sample_type>
-               hash_map<sample_type>
+               //hash_map<sample_type>
 
                  >
                  
     (size, samples)
                //)
                ;
-  /*
+  */
+/*
  >(size, samples));
   } else if ("aho" == container_type_string) {
     print_test(test<quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> > >(size, samples));
