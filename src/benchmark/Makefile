@@ -4,9 +4,9 @@ DATS=insert-maxtime-%.dat
 
 all: insert-maxtime.png
 
-CXX=g++
+CXX=clang++
 HERE=Makefile
-CXXFLAGS=-std=c++0x -O3 -DNDEBUG -I..
+CXXFLAGS=-W -Wall -Wextra -Weffc++ -std=c++0x -O3 -DNDEBUG -I..
 LDFLAGS=-lrt
 SUDO=sudo
 

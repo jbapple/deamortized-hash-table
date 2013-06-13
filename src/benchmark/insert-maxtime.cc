@@ -55,15 +55,21 @@ struct dummy {
   void insert(const T&) {}
 };
 
+size_t flatsub(const size_t& x, const size_t& y) {
+  if (y > x) return 0;
+  return x-y;
+}
+
 template<typename T, typename U>
 void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
   high_priority zz;
   std::vector<T> p(samples);
   std::vector<U> q(samples);
+  std::vector<dummy> r(samples);
   //std::vector<size_t> l1(samples,0), l2(samples,0);
   //std::vector<size_t> s1(samples,0), s2(samples,0);
-  size_t l1(0), l2(0), s1(0), s2(0);
+  size_t l1(0), l2(0), l3(0), s1(0), s2(0), s3(0);
   for (unsigned j = 0; j < size; ++j) { 
     const auto x = some::random();
     __sync_synchronize();
@@ -81,10 +87,26 @@ void test(const unsigned size, const unsigned samples) {
     __sync_synchronize();
     const size_t end = get_time();
     __sync_synchronize();
-    s1 = mid - begin;
-    s2 = end - mid;
+    for (unsigned k = 0; k < samples; ++k) { 
+      r[k].insert(x);
+    }
+    __sync_synchronize();
+    const size_t last = get_time();
+    __sync_synchronize();
+
+    s3 = last - end;
+    l3 = std::max(l3, s3);
+
+
+    s1 = flatsub(mid - begin, s3);
+    s2 = flatsub(end - mid, s3);
+    
+    //s1 = s3 > s1) ? 0
+ 
+
     l1 = std::max(l1, s1);
     l2 = std::max(l2, s2);
+ 
     cout << static_cast<double>(j)/1000.0 << '\t'
          << static_cast<double>(l1)/(1000.0 * static_cast<double>(samples)) << '\t'
          << static_cast<double>(l2)/(1000.0 * static_cast<double>(samples)) << '\t'
@@ -160,8 +182,8 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
 
 int main(int argc, char ** argv) {
   srand(0);
-  unsigned size = 100000;//00;
-  unsigned samples = 128;
+  unsigned size = 50000;//00;
+  unsigned samples = 1 << 8;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
     samples = read<unsigned>(argv[3]);
