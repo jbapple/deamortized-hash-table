@@ -61,47 +61,35 @@ void test(const unsigned size, const unsigned samples) {
   high_priority zz;
   std::vector<T> p(samples);
   std::vector<U> q(samples);
-  std::vector<size_t> l1(samples,0), l2(samples,0);
-  std::vector<size_t> s1(samples,0), s2(samples,0);
+  //std::vector<size_t> l1(samples,0), l2(samples,0);
+  //std::vector<size_t> s1(samples,0), s2(samples,0);
+  size_t l1(0), l2(0), s1(0), s2(0);
   for (unsigned j = 0; j < size; ++j) { 
     const auto x = some::random();
+    __sync_synchronize();
+    const size_t begin = get_time();
+    __sync_synchronize();
     for (unsigned k = 0; k < samples; ++k) { 
-      size_t begin, mid, end;
-      if ((j & 1)) {
-        begin = get_time();
-        __sync_synchronize();
-        p[k].insert(x);
-        __sync_synchronize();
-        mid = get_time(); 
-        __sync_synchronize();
-        q[k].insert(x);
-        __sync_synchronize();
-        end = get_time();
-        s1[k] = mid-begin;
-        s2[k] = end-mid;
-        l1[k] = std::max(l1[k], mid-begin);
-        l2[k] = std::max(l2[k], end-mid);
-      } else {
-        begin = get_time();
-        __sync_synchronize();
-        q[k].insert(x);
-        __sync_synchronize();
-        mid = get_time(); 
-        __sync_synchronize();
-        p[k].insert(x);
-        __sync_synchronize();
-        end = get_time();
-        s2[k] = mid-begin;
-        s1[k] = end-mid;
-        l2[k] = std::max(l2[k], mid-begin);
-        l1[k] = std::max(l1[k], end-mid);
-      }
+      p[k].insert(x);
     }
+    __sync_synchronize();
+    const size_t mid = get_time();
+    __sync_synchronize();
+    for (unsigned k = 0; k < samples; ++k) { 
+      q[k].insert(x);
+    }
+    __sync_synchronize();
+    const size_t end = get_time();
+    __sync_synchronize();
+    s1 = mid - begin;
+    s2 = end - mid;
+    l1 = std::max(l1, s1);
+    l2 = std::max(l2, s2);
     cout << static_cast<double>(j)/1000.0 << '\t'
-         << avg(l1)/1000.0 << '\t'
-         << avg(l2)/1000.0 << '\t' 
-         << static_cast<double>(minimum(s1))/static_cast<double>(1) << '\t'
-         << static_cast<double>(minimum(s2))/static_cast<double>(1) << endl;
+         << static_cast<double>(l1)/(1000.0 * static_cast<double>(samples)) << '\t'
+         << static_cast<double>(l2)/(1000.0 * static_cast<double>(samples)) << '\t'
+         << static_cast<double>(s1)/(1000.0 * static_cast<double>(samples)) << '\t'
+         << static_cast<double>(s2)/(1000.0 * static_cast<double>(samples)) << endl;
   }
 }
 
@@ -173,7 +161,7 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
 int main(int argc, char ** argv) {
   srand(0);
   unsigned size = 100000;//00;
-  unsigned samples = 100;
+  unsigned samples = 128;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
     samples = read<unsigned>(argv[3]);
