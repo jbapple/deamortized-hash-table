@@ -73,5 +73,14 @@ T maximum(const std::vector<T>& xs) {
   return ans;
 }
 
+template<typename T>
+T minimum(const std::vector<T>& xs) {
+  T ans = xs[0];
+  for (const auto& x : xs) {
+    ans = std::min(ans, x);
+  }
+  return ans;
+}
+
 
 #endif

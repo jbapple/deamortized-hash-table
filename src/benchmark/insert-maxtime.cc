@@ -50,6 +50,11 @@ size_t hash(const some & x) {
 
 typedef some sample_type;
 
+struct dummy {
+  template<typename T>
+  void insert(const T&) {}
+};
+
 template<typename T, typename U>
 void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
@@ -64,9 +69,13 @@ void test(const unsigned size, const unsigned samples) {
       size_t begin, mid, end;
       if ((j & 1)) {
         begin = get_time();
+        __sync_synchronize();
         p[k].insert(x);
+        __sync_synchronize();
         mid = get_time(); 
+        __sync_synchronize();
         q[k].insert(x);
+        __sync_synchronize();
         end = get_time();
         s1[k] = mid-begin;
         s2[k] = end-mid;
@@ -74,9 +83,13 @@ void test(const unsigned size, const unsigned samples) {
         l2[k] = std::max(l2[k], end-mid);
       } else {
         begin = get_time();
+        __sync_synchronize();
         q[k].insert(x);
+        __sync_synchronize();
         mid = get_time(); 
+        __sync_synchronize();
         p[k].insert(x);
+        __sync_synchronize();
         end = get_time();
         s2[k] = mid-begin;
         s1[k] = end-mid;
@@ -87,8 +100,8 @@ void test(const unsigned size, const unsigned samples) {
     cout << static_cast<double>(j)/1000.0 << '\t'
          << avg(l1)/1000.0 << '\t'
          << avg(l2)/1000.0 << '\t' 
-         << avg(s1)/static_cast<double>(1000) << '\t'
-         << avg(s2)/static_cast<double>(1000) << endl;
+         << static_cast<double>(minimum(s1))/static_cast<double>(1) << '\t'
+         << static_cast<double>(minimum(s2))/static_cast<double>(1) << endl;
   }
 }
 
@@ -179,7 +192,7 @@ int main(int argc, char ** argv) {
     test<table, tree>(size, samples);
     break;
   case 1:
-    //test<table, try1>(size, samples);
+    test<tree, dummy>(size, samples);
     break;
   case 2:
     test<table, try2>(size, samples);
