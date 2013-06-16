@@ -8,8 +8,9 @@ set terminal png size 800, 480
 set output "insert-tradeoff.png"
 set logscale y 10
 #set logscale x 10
-plot "./insert-maxtime-4.dat" using 6:4 ps 0.7 lc rgb "#aa0000" title "hash table", \
+plot \
      "./insert-maxtime-5.dat" using 6:4 ps 0.2 lc rgb "#ff9900" title "partially deamortized", \
+     "./insert-maxtime-4.dat" using 6:4 ps 0.7 lc rgb "#aa0000" title "hash table", \
      "./insert-maxtime-1.dat" using 6:4 ps 0.4 lc rgb "#00aa00" title "tree"
 
 #plot \
