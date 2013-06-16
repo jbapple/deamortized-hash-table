@@ -25,5 +25,15 @@ In the following scatter plot, average insert time is plotted against maximum in
 
 ![](src/benchmark/insert-tradeoff.png "Average vs. Maximum Insert Time")
 
+Each point represents a particular type of structure after inserting a particular set of keys.
+For instance a dot  may represent a tree structure after inserting all of the phone numbers in the Los Angeles phone book.
+After creating such a structure, we duplicate it some number of times and insert some new key into each copy.
+The maximum of the insertion times is the y coordinate of that point.
+The average of all of the insertion times to create the structure is the x coordinate of that point.
+
 A point close to the origin represents a structure that has low cost insertions in the worst-case and on average.
 A point near the x-axis but far from the y-axis represents a structure with low worst-case insertion cost but high average insertion cost.
+A point near the y-axis but far from the x-axis represents a structure with high worst-case insertion cost but low average insertion cost.
+
+The partially deamortized hash table is midway between the hash table and the tree in this plot.
+Users willing to endure a time penalty on the average insertion are rewarded with lower maximum insertion times.
