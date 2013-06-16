@@ -19,3 +19,11 @@ As you can see, the operations still can be more expensive than in the tree:
 ![](src/benchmark/insert-maxtime-3.png "Maximum Insert Time")
 
 However, they are still much better than in the basic hash table.
+
+Even though the tree has faster insertions in the worst case, its average case is worse.
+In the following scatter plot, average insert time is plotted against maximum insert time.
+
+![](src/benchmark/insert-tradeoff.png "Average vs. Maximum Insert Time")
+
+A point close to the origin represents a structure that has low cost insertions in the worst-case and on average.
+A point near the x-axis but far from the y-axis represents a structure with low worst-case insertion cost but high average insertion cost.

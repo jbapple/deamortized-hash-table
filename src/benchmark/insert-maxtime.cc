@@ -69,7 +69,7 @@ void test(const unsigned size, const unsigned samples) {
   std::vector<dummy> r(samples);
   //std::vector<size_t> l1(samples,0), l2(samples,0);
   //std::vector<size_t> s1(samples,0), s2(samples,0);
-  size_t l1(0), l2(0), l3(0), s1(0), s2(0), s3(0);
+  size_t l1(0), l2(0), l3(0), s1(0), s2(0), s3(0), t1(0), t2(0), t3(0);
   for (unsigned j = 0; j < size; ++j) { 
     const auto x = some::random();
     __sync_synchronize();
@@ -96,22 +96,24 @@ void test(const unsigned size, const unsigned samples) {
 
     s3 = last - end;
     l3 = std::max(l3, s3);
-
+    t3 = t3 + s3;
 
     s1 = flatsub(mid - begin, s3);
     s2 = flatsub(end - mid, s3);
     
-    //s1 = s3 > s1) ? 0
- 
-
     l1 = std::max(l1, s1);
     l2 = std::max(l2, s2);
+
+    t1 = flatsub(t1 + mid - begin, s3);
+    t2 = flatsub(t2 + end - mid, s3);
  
     cout << static_cast<double>(j)/1000.0 << '\t'
          << static_cast<double>(l1)/(1000.0 * static_cast<double>(samples)) << '\t'
          << static_cast<double>(l2)/(1000.0 * static_cast<double>(samples)) << '\t'
          << static_cast<double>(s1)/(1000.0 * static_cast<double>(samples)) << '\t'
-         << static_cast<double>(s2)/(1000.0 * static_cast<double>(samples)) << endl;
+         << static_cast<double>(s2)/(1000.0 * static_cast<double>(samples)) << '\t'
+         << static_cast<double>(t1)/(1000.0 * static_cast<double>(samples * (j+1))) << '\t'
+         << static_cast<double>(t2)/(1000.0 * static_cast<double>(samples * (j+1))) << endl;
   }
 }
 
@@ -209,6 +211,12 @@ int main(int argc, char ** argv) {
     break;
   case 3:
     test<try2, tree>(size, samples);
+    break;
+  case 4:
+    test<table, dummy>(size, samples);
+    break;
+  case 5:
+    test<try2, dummy>(size, samples);
     break;
   }
 
