@@ -4,7 +4,7 @@ set xlabel "Average Insert Time (microseconds)"
 set ylabel "Maximum Insert Time (microseconds)"
 #set xrange [1:100000]
 #set yrange [0:0.00002]
-set terminal png size 800, 480
+set terminal pngcairo size 800, 480
 set output "insert-tradeoff.png"
 set logscale y 10
 #set logscale x 10
