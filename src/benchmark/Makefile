@@ -6,7 +6,7 @@ all: insert-maxtime.png insert-tradeoff.png
 
 CXX=clang++
 HERE=Makefile
-CXXFLAGS=-W -Wall -Wextra -Weffc++ -std=c++0x -I.. -O0 -g
+CXXFLAGS=-W -Wall -Wextra -Weffc++ -std=c++0x -I.. -O3 -DNDEBUG
 LDFLAGS=-lrt
 SUDO=sudo
 

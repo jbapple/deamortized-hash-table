@@ -121,7 +121,7 @@ template<typename T, typename U>
 void test_lookup(const unsigned size, const unsigned samples) {
   void * dummy = 0;
   unsigned i = 0;
-  //high_priority zz;
+  high_priority zz;
   T p;
   U q;
   decltype(p.find(some::random())) pf;
@@ -184,7 +184,7 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
 
 int main(int argc, char ** argv) {
   srand(0);
-  unsigned size = 5000;//00;
+  unsigned size = 50000;//00;
   unsigned samples = 1 << 8;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
