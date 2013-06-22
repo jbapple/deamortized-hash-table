@@ -63,7 +63,7 @@ size_t flatsub(const size_t& x, const size_t& y) {
 template<typename T, typename U>
 void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  //high_priority zz;
+  high_priority zz;
   std::vector<T> p(samples);
   std::vector<U> q(samples);
   std::vector<dummy> r(samples);

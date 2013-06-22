@@ -143,7 +143,7 @@ struct TieredBitArray {
       //x = 0;
     }
   }
-  TieredBitArray(const BasicBitArray&) = delete;
+  TieredBitArray(const TieredBitArray&) = delete;
   TieredBitArray& operator=(const TieredBitArray&) = delete;
   size_t upper(const size_t i) const {
     return (i >> ((shift+1)/2));
@@ -185,6 +185,91 @@ struct TieredBitArray {
 };
 
 vector<vector<bool> *> TieredBitArray::old_ones = vector<vector<bool> *>();
+
+template<typename T>
+struct TieredArray {
+  static size_t blog(size_t n) {
+    assert (0 == (n & (n-1)));
+    size_t ans = 0;
+    while (n > 1) {
+      n /= 2;
+      ++ans;
+    }
+    return ans;
+  }
+  static vector<vector<T> *> old_ones;
+
+  size_t shift;
+  vector<vector<T> *> data;
+  TieredArray(const size_t n) : shift(blog(n)), data(1ull << (shift/2), 0) {
+
+  }
+  ~TieredArray() {
+    for (auto& x : data) {
+      old_ones.push_back(x);
+      //delete x;
+      //x = 0;
+    }
+  }
+  TieredArray(const TieredArray&) = delete;
+  TieredArray& operator=(const TieredArray&) = delete;
+  size_t upper(const size_t i) const {
+    return (i >> ((shift+1)/2));
+  }
+  size_t lower(const size_t i) const {
+    //return (i & ((1ull << ((shift/2)+1)) - 1));
+    return (i - (upper(i) << ((shift+1)/2)));
+  }
+  const T& get(const size_t& i) const {
+    assert (upper(i) < (1ull << (shift/2)));
+    assert (0 != data[upper(i)]);
+    return (*data[upper(i)])[lower(i)];
+  }
+  T& get(const size_t& i) {
+    assert (upper(i) < (1ull << (shift/2)));
+    assert (0 != data[upper(i)]);
+    return (*data[upper(i)])[lower(i)];
+  }
+  void set(const size_t& i, const T& x) {
+    if (0 == data[upper(i)]) {
+      data[upper(i)] = new vector<T>(1ull << ((shift+1)/2));
+    }
+    (*data[upper(i)])[lower(i)] = x;
+    if (not old_ones.empty()) {
+      delete old_ones.back();
+      old_ones.pop_back();
+    }
+  }
+  void swap(TieredArray * that) {
+    std::swap(shift, that->shift);
+    data.swap(that->data);
+  }
+};
+
+template<typename T>
+vector<vector<T> *> TieredArray<T>::old_ones = vector<vector<T> *>();
+
+template<typename T>
+struct BasicArray {
+  vector<T> data;
+  BasicArray(const size_t n) : data(n) {
+  }
+  BasicArray(const BasicArray&) = delete;
+  BasicArray& operator=(const BasicArray&) = delete;
+  const T& get(const size_t& i) const {
+    return data[i];
+  }
+  T& get(const size_t& i) {
+    return data[i];
+  }
+  void set(const size_t& i, const T& x) {
+    data[i] = x;
+  }
+  void swap(BasicArray * that) {
+    data.swap(that->data);
+  }
+};
+
 
 /*
 struct BasicBitArray {
@@ -244,19 +329,21 @@ struct AhoBitArray {
 };
 
 
-template<typename Key, typename BitArray>
+template<typename Key>
+struct slot {
+  Key key;
+};
+
+template<typename Key, typename BitArray, typename Array = BasicArray<slot<Key> > >
 struct lazier_map {
-  struct slot {
-    Key key;
-  };
   BitArray occupied;
-  slot * data;
+  Array data;
   size_t capacity, full;
   lazier_map()
     : occupied(0), data(0), capacity(0), full(0) {}
   lazier_map(const size_t capacity)
     // use malloc to allow Key type without default constructor
-    : occupied(capacity), data(reinterpret_cast<slot*>(malloc(sizeof(slot) * capacity))), 
+    : occupied(capacity), data(capacity), 
       capacity(capacity), full(0)
   {
   }
@@ -266,12 +353,13 @@ struct lazier_map {
   
   // find a key in a nonempty table
   size_t locate(const Key& k) {
-    assert (nullptr != data); assert (capacity > 0); assert (0 == (capacity & capacity-1));
+    //assert (nullptr != data); 
+    assert (capacity > 0); assert (0 == (capacity & capacity-1));
     const auto cap_mask = capacity-1;
     auto h = hashf(k) & (cap_mask);
     while (true) {
       if (not occupied.check(h)) return h;
-      if (data[h].key == k) return h;
+      if (data.get(h).key == k) return h;
       h = (h+1) & cap_mask;
     }
   }
@@ -282,7 +370,7 @@ struct lazier_map {
     const auto i = locate(k);
     if (occupied.check(i)) return static_cast<size_t>(-1);
     occupied.set(i);
-    data[i].key = k;
+    data.get(i).key = k;
     ++full;
     return i;
   }
@@ -315,18 +403,20 @@ struct lazier_map {
   }
   
   void swap(lazier_map * that) {
-    std::swap(data, that->data);
+    data.swap(&that->data);
     std::swap(capacity, that->capacity);
     std::swap(full, that->full);
     occupied.swap(&that->occupied);
   }
 
+  /*
   ~lazier_map() {
     if (0 != data) {
       free(data);
       data = 0;
     }
   }
+  */
 
   bool is_occupied(const size_t i) const {
     return occupied.check(i);
@@ -361,7 +451,7 @@ struct quiet_map {
       while ((progress < (here.full - (here.capacity * 3)/8)*8)
              and (progress < here.capacity)) {
         if (here.is_occupied(progress)) {
-          there.place(here.data[progress].key);
+          there.place(here.data.get(progress).key);
         }
         ++progress;
       }
@@ -377,7 +467,7 @@ struct quiet_map {
       while ((progress < ((here.capacity * 3)/16 - here.full)*16)
              and (progress < here.capacity)) {
         if (here.is_occupied(progress)) {
-          there.place(here.data[progress].key);
+          there.place(here.data.get(progress).key);
         }
         ++progress;
       }      
