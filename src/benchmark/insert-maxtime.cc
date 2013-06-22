@@ -63,7 +63,7 @@ size_t flatsub(const size_t& x, const size_t& y) {
 template<typename T, typename U>
 void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  high_priority zz;
+  //high_priority zz;
   std::vector<T> p(samples);
   std::vector<U> q(samples);
   std::vector<dummy> r(samples);
@@ -184,7 +184,7 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
 
 int main(int argc, char ** argv) {
   srand(0);
-  unsigned size = 50000;//00;
+  unsigned size = 5000;//00;
   unsigned samples = 1 << 8;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
@@ -198,6 +198,7 @@ int main(int argc, char ** argv) {
   typedef quiet_map<sample_type, lazy_map<sample_type> > try1;
   typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> > try2;
   typedef quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> > try3;
+  typedef quiet_map<sample_type, lazier_map<sample_type, TieredBitArray> > try4;
 
   switch(which) {
   case 0:
@@ -217,6 +218,9 @@ int main(int argc, char ** argv) {
     break;
   case 5:
     test<try2, dummy>(size, samples);
+    break;
+  case 6:
+    test<try4, tree>(size, samples);
     break;
   }
 

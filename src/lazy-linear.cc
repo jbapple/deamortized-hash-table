@@ -119,6 +119,72 @@ struct BasicBitArray {
   }
 };
 
+struct TieredBitArray {
+  static size_t blog(size_t n) {
+    assert (0 == (n & (n-1)));
+    size_t ans = 0;
+    while (n > 1) {
+      n /= 2;
+      ++ans;
+    }
+    return ans;
+  }
+  size_t shift;
+  vector<vector<bool> *> data;
+  TieredBitArray(const size_t n) : shift(blog(n)), data(1ull << (shift/2), 0) {
+    assert (0 == pop_count());
+  }
+  ~TieredBitArray() {
+    for (auto& x : data) {
+      delete x;
+      x = 0;
+    }
+  }
+  TieredBitArray(const BasicBitArray&) = delete;
+  TieredBitArray& operator=(const TieredBitArray&) = delete;
+  size_t upper(const size_t i) const {
+    return (i >> ((shift+1)/2));
+  }
+  size_t lower(const size_t i) const {
+    return (i & ((1ull << ((shift/2)+1)) - 1));
+  }
+  bool check(const size_t& i) const {
+    if (0 == data[upper(i)]) {
+      return false;
+    }
+    return (*data[upper(i)])[lower(i)];
+  }
+  size_t pop_count() const {
+    size_t ans = 0;
+    for (size_t i = 0; i < (1ull << shift); ++i) {
+      if (check(i)) ++ans;
+      cerr << (check(i) ? 1 : 0);
+    }
+    cerr << endl << this << " pop_count: " << ans << endl;
+    assert (ans < (1ull << shift));
+    return ans;
+  }
+  void set(const size_t& i) {
+    const size_t old_count = pop_count();
+    if (0 == data[upper(i)]) {
+      data[upper(i)] = new vector<bool>(1ull << ((shift+1)/2), false);
+    }
+    (*data[upper(i)])[lower(i)] = true;
+    assert (pop_count() <= old_count + 1);
+  }
+  void unset(const size_t& i) {
+    if (0 != data[upper(i)]) {
+      (*data[upper(i)])[lower(i)] = false;
+    }
+    pop_count();
+  }
+  void swap(TieredBitArray * that) {
+    std::swap(shift, that->shift);
+    data.swap(that->data);
+  }
+};
+
+
 /*
 struct BasicBitArray {
   vector<bool> data;
