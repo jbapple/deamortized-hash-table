@@ -11,9 +11,12 @@ set logscale y 10
 # plot "./insert-maxtime-4.dat" using 6:4:(log((($4 * 3)>1)?($4 * 3):1)) pt 7 ps variable lc rgb "#aa0000", "./insert-maxtime-5.dat" using 6:4:(log((($4 * 3)>1)?($4 * 3):1)) pt 7 ps variable lc rgb "#ff9900", "./insert-maxtime-1.dat" using 6:4:(log((($4*3)>1)?($4*3):1)) pt 7 ps variable lc rgb "#00aa00"
 
 plot \
+     "./insert-maxtime-6.dat" using 6:4:(log((($4 * 3)>1)?($4 * 3):1)) pt 7 ps variable lc rgb "#99ff00" title "tiered hash", \
      "./insert-maxtime-5.dat" using 6:4:(log((($4 * 3)>1)?($4 * 3):1)) pt 7 ps variable lc rgb "#ff9900" title "partially deamortized", \
      "./insert-maxtime-4.dat" using 6:4:(log((($4 * 3)>1)?($4 * 3):1)) pt 7 ps variable lc rgb "#aa0000" title "hash table", \
      "./insert-maxtime-1.dat" using 6:4:(log((($4 * 3)>1)?($4 * 3):1)) pt 7 ps variable lc rgb "#00aa00" title "tree"
+
+     
 
 #plot \
 #"insert-maxtime-REPLACE1.dat" using 1:2 with lines lc rgb "COLOR1" lw 2 title "REPLACE2", \

@@ -187,6 +187,34 @@ struct TieredBitArray {
 vector<vector<bool> *> TieredBitArray::old_ones = vector<vector<bool> *>();
 
 template<typename T>
+struct BasicArray {
+  T * data;
+  BasicArray(const size_t n, const T& x) : data(reinterpret_cast<T*>(malloc(sizeof(T) * n))) {
+    for (size_t i = 0; i < n; ++i) {
+      data[i] = x;
+    }
+  }
+  BasicArray(const size_t n) : data(reinterpret_cast<T*>(malloc(sizeof(T) * n))) {}
+  BasicArray(const BasicArray&) = delete;
+  BasicArray& operator=(const BasicArray&) = delete;
+  const T& get(const size_t& i) const {
+    return data[i];
+  }
+  T& get(const size_t& i) {
+    return data[i];
+  }
+  void set(const size_t& i, const T& x) {
+    data[i] = x;
+  }
+  void swap(BasicArray * that) {
+    std::swap(data, that->data);
+  }
+  ~BasicArray() {
+    if (0 != data) free(data);
+  }
+};
+
+template<typename T>
 struct TieredArray {
   static size_t blog(size_t n) {
     assert (0 == (n & (n-1)));
@@ -197,16 +225,16 @@ struct TieredArray {
     }
     return ans;
   }
-  static vector<vector<T> *> old_ones;
+  static vector<BasicArray<T> *> old_ones;
 
   size_t shift;
-  vector<vector<T> *> data;
+  BasicArray<BasicArray<T> *> data;
   TieredArray(const size_t n) : shift(blog(n)), data(1ull << (shift/2), 0) {
 
   }
   ~TieredArray() {
-    for (auto& x : data) {
-      old_ones.push_back(x);
+    for (size_t i = 0; i < (1ull << (shift/2)); ++i) {
+      old_ones.push_back(data.get(i));
       //delete x;
       //x = 0;
     }
@@ -222,19 +250,19 @@ struct TieredArray {
   }
   const T& get(const size_t& i) const {
     assert (upper(i) < (1ull << (shift/2)));
-    assert (0 != data[upper(i)]);
-    return (*data[upper(i)])[lower(i)];
+    assert (0 != data.get(upper(i)));
+    return data.get(upper(i))->get(lower(i));
   }
   T& get(const size_t& i) {
     assert (upper(i) < (1ull << (shift/2)));
-    assert (0 != data[upper(i)]);
-    return (*data[upper(i)])[lower(i)];
+    assert (0 != data.get(upper(i)));
+    return data.get(upper(i))->get(lower(i));
   }
   void set(const size_t& i, const T& x) {
-    if (0 == data[upper(i)]) {
-      data[upper(i)] = new vector<T>(1ull << ((shift+1)/2));
+    if (0 == data.get(upper(i))) {
+      data.set(upper(i), new BasicArray<T>(1ull << ((shift+1)/2)));
     }
-    (*data[upper(i)])[lower(i)] = x;
+    data.get(upper(i))->set(lower(i),x);
     if (not old_ones.empty()) {
       delete old_ones.back();
       old_ones.pop_back();
@@ -242,33 +270,13 @@ struct TieredArray {
   }
   void swap(TieredArray * that) {
     std::swap(shift, that->shift);
-    data.swap(that->data);
+    data.swap(&that->data);
   }
 };
 
 template<typename T>
-vector<vector<T> *> TieredArray<T>::old_ones = vector<vector<T> *>();
+vector<BasicArray<T> *> TieredArray<T>::old_ones = vector<BasicArray<T> *>(0);
 
-template<typename T>
-struct BasicArray {
-  vector<T> data;
-  BasicArray(const size_t n) : data(n) {
-  }
-  BasicArray(const BasicArray&) = delete;
-  BasicArray& operator=(const BasicArray&) = delete;
-  const T& get(const size_t& i) const {
-    return data[i];
-  }
-  T& get(const size_t& i) {
-    return data[i];
-  }
-  void set(const size_t& i, const T& x) {
-    data[i] = x;
-  }
-  void swap(BasicArray * that) {
-    data.swap(that->data);
-  }
-};
 
 
 /*
@@ -334,7 +342,7 @@ struct slot {
   Key key;
 };
 
-template<typename Key, typename BitArray, typename Array = BasicArray<slot<Key> > >
+template<typename Key, typename BitArray, typename Array>
 struct lazier_map {
   BitArray occupied;
   Array data;
@@ -370,7 +378,7 @@ struct lazier_map {
     const auto i = locate(k);
     if (occupied.check(i)) return static_cast<size_t>(-1);
     occupied.set(i);
-    data.get(i).key = k;
+    data.set(i,slot<Key>({ k }));
     ++full;
     return i;
   }
@@ -424,7 +432,7 @@ struct lazier_map {
 
 };
 
-template<typename Key, typename Base = lazier_map<Key, AhoBitArray> >
+template<typename Key, typename Base>
 struct quiet_map {
   Base here, there;
   size_t progress;

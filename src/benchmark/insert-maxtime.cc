@@ -196,9 +196,11 @@ int main(int argc, char ** argv) {
   typedef std::set<sample_type> tree;
 
   typedef quiet_map<sample_type, lazy_map<sample_type> > try1;
-  typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> > try2;
-  typedef quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> > try3;
-  typedef quiet_map<sample_type, lazier_map<sample_type, TieredBitArray> > try4;
+  //typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> > try2;
+  typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray, BasicArray<slot<sample_type > > > > try2;
+  //typedef quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> > try3;
+  typedef quiet_map<sample_type, lazier_map<sample_type, TieredBitArray, BasicArray<slot<sample_type > > > > try4;
+  typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray, TieredArray<slot<sample_type > > > > try5;
 
   switch(which) {
   case 0:
@@ -220,7 +222,7 @@ int main(int argc, char ** argv) {
     test<try2, dummy>(size, samples);
     break;
   case 6:
-    test<try4, tree>(size, samples);
+    test<try5, dummy>(size, samples);
     break;
   }
 
