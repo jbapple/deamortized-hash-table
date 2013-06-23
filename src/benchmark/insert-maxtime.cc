@@ -184,8 +184,8 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
 
 int main(int argc, char ** argv) {
   srand(0);
-  unsigned size = 50000;//00;
-  unsigned samples = 1 << 8;
+  unsigned size = 1000000;//00;
+  unsigned samples = 1 << 5;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
     samples = read<unsigned>(argv[3]);
@@ -200,7 +200,12 @@ int main(int argc, char ** argv) {
   typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray, BasicArray<slot<sample_type > > > > try2;
   //typedef quiet_map<sample_type, lazier_map<sample_type, AhoBitArray> > try3;
   typedef quiet_map<sample_type, lazier_map<sample_type, TieredBitArray, BasicArray<slot<sample_type > > > > try4;
-  typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray, TieredArray<slot<sample_type > > > > try5;
+  typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray, TieredArray<slot<sample_type > > > > try5; // good
+  typedef quiet_map<sample_type, lazier_map<sample_type, TieredBitArray, TieredArray<slot<sample_type > > > > try6;
+  typedef quiet_map<sample_type, lazier_map<sample_type, TieredBoolArray, TieredArray<slot<sample_type > > > > try7;
+  typedef quiet_map<sample_type, lazier_map<sample_type, AhoBitArray, TieredArray<slot<sample_type > > > > try8;
+  typedef quiet_map<sample_type, lazier_map<sample_type, TieredPackedBitArray, TieredArray<slot<sample_type > > > > try9;
+  typedef quiet_map<sample_type, lazier_map<sample_type, ImplicitBitArray, TieredArray<slot<sample_type > > > > try10; // good
 
   switch(which) {
   case 0:
@@ -223,6 +228,9 @@ int main(int argc, char ** argv) {
     break;
   case 6:
     test<try5, dummy>(size, samples);
+    break;
+  case 7:
+    test<try10, dummy>(size, samples);
     break;
   }
 

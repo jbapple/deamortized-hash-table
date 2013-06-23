@@ -186,6 +186,185 @@ struct TieredBitArray {
 
 vector<vector<bool> *> TieredBitArray::old_ones = vector<vector<bool> *>();
 
+struct TieredBoolArray {
+  static size_t blog(size_t n) {
+    assert (0 == (n & (n-1)));
+    size_t ans = 0;
+    while (n > 1) {
+      n /= 2;
+      ++ans;
+    }
+    return ans;
+  }
+  static vector<bool *> old_ones;
+
+  size_t shift;
+  bool ** data;
+  TieredBoolArray(const size_t n) : shift(blog(n)), data(reinterpret_cast<bool **>(calloc(1ull << (shift/2), sizeof(bool*)))) {
+
+  }
+  ~TieredBoolArray() {
+    for (size_t i = 0; i < (1ull << (shift/2)); ++i) {
+      old_ones.push_back(data[i]);
+    }
+    free(data);
+  }
+  TieredBoolArray(const TieredBoolArray&) = delete;
+  TieredBoolArray& operator=(const TieredBoolArray&) = delete;
+  size_t upper(const size_t i) const {
+    return (i >> ((shift+1)/2));
+  }
+  size_t lower(const size_t i) const {
+    //return (i & ((1ull << ((shift/2)+1)) - 1));
+    return (i - (upper(i) << ((shift+1)/2)));
+  }
+  bool check(const size_t& i) const {
+    assert (upper(i) < (1ull << (shift/2)));
+    if (0 == data[upper(i)]) {
+      return false;
+    }
+    return data[upper(i)][lower(i)];
+  }
+  void set(const size_t& i) {
+    if (0 == data[upper(i)]) {
+      data[upper(i)] = reinterpret_cast<bool*>(calloc(1ull << ((shift+1)/2), sizeof(bool)));
+    }
+    data[upper(i)][lower(i)] = true;
+    if (not old_ones.empty()) {
+      free(old_ones.back());
+      old_ones.pop_back();
+    }
+  }
+  void unset(const size_t& i) {
+    if (0 != data[upper(i)]) {
+      data[upper(i)][lower(i)] = false;
+    }
+    if (not old_ones.empty()) {
+      free(old_ones.back());
+      old_ones.pop_back();
+    }
+  }
+  void swap(TieredBoolArray * that) {
+    std::swap(shift, that->shift);
+    std::swap(data, that->data);
+  }
+};
+
+vector<bool *> TieredBoolArray::old_ones = vector<bool *>();
+
+struct TieredPackedBitArray {
+  static size_t blog(size_t n) {
+    assert (0 == (n & (n-1)));
+    size_t ans = 0;
+    while (n > 1) {
+      n /= 2;
+      ++ans;
+    }
+    return ans;
+  }
+  static vector<size_t *> old_ones;
+  //const static word_size = 8 * sizeof(size_t);
+  const static size_t word_log = 6;
+  const static size_t word_mask = 63;
+
+  size_t shift;
+  size_t ** data;
+  TieredPackedBitArray(const size_t n) 
+    : shift(blog(n >> word_log)), 
+      data(reinterpret_cast<size_t **>(calloc(1ull << (shift/2), sizeof(size_t *)))) {
+
+  }
+  ~TieredPackedBitArray() {
+    for (size_t i = 0; i < (1ull << (shift/2)); ++i) {
+      old_ones.push_back(data[i]);
+    }
+    free(data);
+  }
+  TieredPackedBitArray(const TieredPackedBitArray&) = delete;
+  TieredPackedBitArray& operator=(const TieredPackedBitArray&) = delete;
+  size_t upper(const size_t i) const {
+    return ((i >> word_log) >> ((shift+1)/2));
+  }
+  size_t lower(const size_t i) const {
+    //return (i & ((1ull << ((shift/2)+1)) - 1));
+    return ((i >> word_log) - (upper(i) << ((shift+1)/2)));
+  }
+  bool check(const size_t& i) const {
+    assert (upper(i) < (1ull << (shift/2)));
+    if (0 == data[upper(i)]) {
+      return false;
+    }
+    return data[upper(i)][lower(i)] & (1ull << (i & word_mask));
+  }
+  void set(const size_t& i) {
+    if (0 == data[upper(i)]) {
+      data[upper(i)] = reinterpret_cast<size_t *>(calloc(1ull << ((shift+1)/2), sizeof(size_t)));
+    }
+    data[upper(i)][lower(i)] |= (1ull << (i & word_mask));
+    if (not old_ones.empty()) {
+      free(old_ones.back());
+      old_ones.pop_back();
+    }
+  }
+  void unset(const size_t& i) {
+    if (0 != data[upper(i)]) {
+      data[upper(i)][lower(i)] &= ~(1ull << (i & word_mask));
+    }
+    if (not old_ones.empty()) {
+      free(old_ones.back());
+      old_ones.pop_back();
+    }
+  }
+  void swap(TieredPackedBitArray * that) {
+    std::swap(shift, that->shift);
+    std::swap(data, that->data);
+  }
+};
+
+vector<size_t *> TieredPackedBitArray::old_ones = vector<size_t *>();
+
+#include <sys/mman.h>
+
+struct ImplicitBitArray {
+  const static size_t word_log = 6;
+  const static size_t word_mask = 63;
+  const static size_t page_size;
+
+  size_t size;
+  size_t * data;
+  ImplicitBitArray(const size_t n) 
+    : size(n),
+      data(reinterpret_cast<size_t *>
+           ( (n/8 >= page_size) 
+             ? mmap(0, n/8, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0)
+             : calloc(n >> word_log, 1ull << word_log))) {}
+
+  ~ImplicitBitArray() {
+    if (size/8 >= page_size) {
+      munmap(data, size/8);
+    } else {
+      free(data);
+    }
+  }
+  ImplicitBitArray(const ImplicitBitArray&) = delete;
+  ImplicitBitArray& operator=(const ImplicitBitArray&) = delete;
+  bool check(const size_t& i) const {
+    return data[i >> word_log] & (1ull << (i & word_mask));
+  }
+  void set(const size_t& i) {
+    data[i >> word_log] |= (1ull << (i & word_mask));
+  }
+  void unset(const size_t& i) {
+    data[i >> word_log] &= ~(1ull << (i & word_mask));
+  }
+  void swap(ImplicitBitArray * that) {
+    std::swap(size, that->size);
+    std::swap(data, that->data);
+  }
+};
+
+const size_t ImplicitBitArray::page_size = sysconf(_SC_PAGE_SIZE) * 8;
+
 template<typename T>
 struct BasicArray {
   T * data;
