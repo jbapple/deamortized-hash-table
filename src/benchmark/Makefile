@@ -4,7 +4,7 @@ DATS=insert-maxtime-%.dat
 
 all: insert-maxtime.png insert-tradeoff.png
 
-CXX=clang++
+CXX=g++
 HERE=Makefile
 CXXFLAGS=-W -Wall -Wextra -Weffc++ -std=c++0x -I.. -O3 -DNDEBUG
 LDFLAGS=-lrt
@@ -20,7 +20,7 @@ SUDO=sudo
 # 	${SUDO} ./$*.exe separate >$*_separate.dat
 # 	${SUDO} ./$*.exe aho >$*_aho.dat
 
-insert-tradeoff.png: insert-tradeoff.gnuplot insert-maxtime-6.dat insert-maxtime-5.dat insert-maxtime-1.dat insert-maxtime-4.dat ${HERE}
+insert-tradeoff.png: insert-tradeoff.gnuplot insert-maxtime-4.dat insert-maxtime-5.dat insert-maxtime-6.dat insert-maxtime-1.dat ${HERE}
 	gnuplot insert-tradeoff.gnuplot
 
 insert-maxtime-%.dat: insert-maxtime.exe ${HERE}

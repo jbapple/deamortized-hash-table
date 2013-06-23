@@ -225,19 +225,23 @@ struct TieredArray {
     }
     return ans;
   }
-  static vector<BasicArray<T> *> old_ones;
+  static vector<T *> old_ones;
 
   size_t shift;
-  BasicArray<BasicArray<T> *> data;
-  TieredArray(const size_t n) : shift(blog(n)), data(1ull << (shift/2), 0) {
-
+  T ** data;
+  TieredArray(const size_t n) 
+  : shift(blog(n)), 
+    data(reinterpret_cast<T**>(calloc(1ull << (shift/2), sizeof(T*)))) {
   }
   ~TieredArray() {
     for (size_t i = 0; i < (1ull << (shift/2)); ++i) {
-      old_ones.push_back(data.get(i));
+      old_ones.push_back(data[i]);
+      //data[i] = 0;
       //delete x;
       //x = 0;
     }
+    free(data);
+    //data = 0;
   }
   TieredArray(const TieredArray&) = delete;
   TieredArray& operator=(const TieredArray&) = delete;
@@ -250,32 +254,34 @@ struct TieredArray {
   }
   const T& get(const size_t& i) const {
     assert (upper(i) < (1ull << (shift/2)));
-    assert (0 != data.get(upper(i)));
-    return data.get(upper(i))->get(lower(i));
+    assert (0 != data[upper(i)]);
+    return data[upper(i)][lower(i)];
   }
   T& get(const size_t& i) {
     assert (upper(i) < (1ull << (shift/2)));
-    assert (0 != data.get(upper(i)));
-    return data.get(upper(i))->get(lower(i));
+    assert (0 != data[upper(i)]);
+    return data[upper(i)][lower(i)];
   }
   void set(const size_t& i, const T& x) {
-    if (0 == data.get(upper(i))) {
-      data.set(upper(i), new BasicArray<T>(1ull << ((shift+1)/2)));
+    assert (reinterpret_cast<T*>(0x21) != data[upper(i)]);
+    if (0 == data[upper(i)]) {
+      data[upper(i)] = reinterpret_cast<T*>(malloc(sizeof(T) * (1ull << ((shift+1)/2))));
+      //cerr << data[upper(i)] << endl;
     }
-    data.get(upper(i))->set(lower(i),x);
+    data[upper(i)][lower(i)] = x;
     if (not old_ones.empty()) {
-      delete old_ones.back();
+      free(old_ones.back());
       old_ones.pop_back();
     }
   }
   void swap(TieredArray * that) {
     std::swap(shift, that->shift);
-    data.swap(&that->data);
+    std::swap(data, that->data);
   }
 };
 
 template<typename T>
-vector<BasicArray<T> *> TieredArray<T>::old_ones = vector<BasicArray<T> *>(0);
+vector<T *> TieredArray<T>::old_ones = vector<T *>();
 
 
 
