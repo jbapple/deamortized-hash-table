@@ -63,7 +63,7 @@ size_t flatsub(const size_t& x, const size_t& y) {
 template<typename T, typename U>
 void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  high_priority zz;
+  //high_priority zz;
   std::vector<T> p(samples);
   std::vector<U> q(samples);
   std::vector<dummy> r(samples);
@@ -184,7 +184,7 @@ void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
 
 int main(int argc, char ** argv) {
   srand(0);
-  unsigned size = 1000000;//00;
+  unsigned size = 100000;//00;
   unsigned samples = 1 << 5;
   if (4 == argc) {
     size = read<unsigned>(argv[2]);
@@ -206,6 +206,9 @@ int main(int argc, char ** argv) {
   typedef quiet_map<sample_type, lazier_map<sample_type, AhoBitArray, TieredArray<slot<sample_type > > > > try8;
   typedef quiet_map<sample_type, lazier_map<sample_type, TieredPackedBitArray, TieredArray<slot<sample_type > > > > try9;
   typedef quiet_map<sample_type, lazier_map<sample_type, ImplicitBitArray, TieredArray<slot<sample_type > > > > try10; // good
+  typedef quiet_map<sample_type, lazier_map<sample_type, ImplicitBitArray, MmapArray<slot<sample_type > > > > try11; // bad
+  typedef quiet_map<sample_type, lazier_map<sample_type, ImplicitBitArray, TieredMmapArray<slot<sample_type > > > > try12; // bad
+  // to try: tiered mmap bitarray at larger sizes
 
   switch(which) {
   case 0:
@@ -231,6 +234,9 @@ int main(int argc, char ** argv) {
     break;
   case 7:
     test<try10, dummy>(size, samples);
+    break;
+  case 8:
+    test<try12, dummy>(size, samples);
     break;
   }
 
