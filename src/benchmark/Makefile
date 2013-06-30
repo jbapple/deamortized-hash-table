@@ -6,7 +6,7 @@ all: insert-maxtime.png insert-tradeoff.png
 
 CXX=clang++
 HERE=Makefile
-CXXFLAGS=-W -Wall -Wextra -Weffc++ -std=c++0x -I.. -O0 -g
+CXXFLAGS=-W -Wall -Wextra -Weffc++ -std=c++0x -I.. -O3 -DNDEBUG
 LDFLAGS=-lrt
 SUDO=sudo
 
@@ -20,7 +20,7 @@ SUDO=sudo
 # 	${SUDO} ./$*.exe separate >$*_separate.dat
 # 	${SUDO} ./$*.exe aho >$*_aho.dat
 
-insert-tradeoff.png: insert-tradeoff.gnuplot insert-maxtime-4.dat insert-maxtime-5.dat insert-maxtime-6.dat insert-maxtime-1.dat insert-maxtime-7.dat ${HERE}
+insert-tradeoff.png: insert-tradeoff.gnuplot insert-maxtime-0.dat insert-maxtime-6.dat insert-maxtime-1.dat ${HERE}
 	gnuplot insert-tradeoff.gnuplot
 
 insert-maxtime-%.dat: insert-maxtime.exe ${HERE}
@@ -61,6 +61,10 @@ insert-maxtime-7.png: insert-maxtime.gnuplot insert-maxtime-7.dat ${HERE}
 insert-maxtime-8.png: insert-maxtime.gnuplot insert-maxtime-8.dat ${HERE}
 	sed 's/REPLACE1/8/g' insert-maxtime.gnuplot | sed 's/REPLACE2/both mmap/g' | sed 's/REPLACE3/dummy/g' | sed 's/COLOR1/#006633/g' | sed 's/COLOR2/black/g' > insert-maxtime-8.gnuplot
 	gnuplot insert-maxtime-8.gnuplot
+
+#insert-maxtime-9.png: insert-maxtime.gnuplot insert-maxtime-9.dat ${HERE}
+#	sed 's/REPLACE1/9/g' insert-maxtime.gnuplot | sed 's/REPLACE2/btree/g' | sed 's/REPLACE3/dummy/g' | sed 's/COLOR1/#0000ff/g' | sed 's/COLOR2/black/g' > insert-maxtime-9.gnuplot
+#	gnuplot insert-maxtime-9.gnuplot
 
 %.exe: %.cc ${HERE} ../util.hh ../util.cc #make_realtime.sh
 	${CXX} ${CXXFLAGS} ../util.o $*.cc -o $@ ${LDFLAGS}

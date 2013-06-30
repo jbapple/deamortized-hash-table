@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <set>
 #include <tuple>
+//#include "google-btree/btree_set.h"
 
 using namespace std;
 
@@ -60,16 +61,15 @@ size_t flatsub(const size_t& x, const size_t& y) {
   return x-y;
 }
 
-template<typename T, typename U>
+template<typename T>
 void test(const unsigned size, const unsigned samples) {
   unsigned i = 0;
-  //high_priority zz;
+  high_priority zz;
   std::vector<T> p(samples);
-  std::vector<U> q(samples);
   std::vector<dummy> r(samples);
   //std::vector<size_t> l1(samples,0), l2(samples,0);
   //std::vector<size_t> s1(samples,0), s2(samples,0);
-  size_t l1(0), l2(0), l3(0), s1(0), s2(0), s3(0), t1(0), t2(0), t3(0);
+  size_t l1(0), l3(0), s1(0), s3(0), t1(0), t3(0);
   for (unsigned j = 0; j < size; ++j) { 
     const auto x = some::random();
     __sync_synchronize();
@@ -82,38 +82,26 @@ void test(const unsigned size, const unsigned samples) {
     const size_t mid = get_time();
     __sync_synchronize();
     for (unsigned k = 0; k < samples; ++k) { 
-      q[k].insert(x);
-    }
-    __sync_synchronize();
-    const size_t end = get_time();
-    __sync_synchronize();
-    for (unsigned k = 0; k < samples; ++k) { 
       r[k].insert(x);
     }
     __sync_synchronize();
     const size_t last = get_time();
     __sync_synchronize();
 
-    s3 = last - end;
+    s3 = last - mid;
     l3 = std::max(l3, s3);
     t3 = t3 + s3;
 
     s1 = flatsub(mid - begin, s3);
-    s2 = flatsub(end - mid, s3);
     
     l1 = std::max(l1, s1);
-    l2 = std::max(l2, s2);
 
     t1 = flatsub(t1 + mid - begin, s3);
-    t2 = flatsub(t2 + end - mid, s3);
  
     cout << static_cast<double>(j)/1000.0 << '\t'
          << static_cast<double>(l1)/(1000.0 * static_cast<double>(samples)) << '\t'
-         << static_cast<double>(l2)/(1000.0 * static_cast<double>(samples)) << '\t'
          << static_cast<double>(s1)/(1000.0 * static_cast<double>(samples)) << '\t'
-         << static_cast<double>(s2)/(1000.0 * static_cast<double>(samples)) << '\t'
-         << static_cast<double>(t1)/(1000.0 * static_cast<double>(samples * (j+1))) << '\t'
-         << static_cast<double>(t2)/(1000.0 * static_cast<double>(samples * (j+1))) << endl;
+         << static_cast<double>(t1)/(1000.0 * static_cast<double>(samples * (j+1))) << endl;
   }
 }
 
@@ -194,6 +182,7 @@ int main(int argc, char ** argv) {
 
   typedef hash_map<sample_type> table;
   typedef std::set<sample_type> tree;
+  //typedef btree::btree_set<sample_type> btree;
 
   typedef quiet_map<sample_type, lazy_map<sample_type> > try1;
   //typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> > try2;
@@ -207,37 +196,34 @@ int main(int argc, char ** argv) {
   typedef quiet_map<sample_type, lazier_map<sample_type, TieredPackedBitArray, TieredArray<slot<sample_type > > > > try9;
   typedef quiet_map<sample_type, lazier_map<sample_type, ImplicitBitArray, TieredArray<slot<sample_type > > > > try10; // good
   typedef quiet_map<sample_type, lazier_map<sample_type, ImplicitBitArray, MmapArray<slot<sample_type > > > > try11; // bad
-  typedef quiet_map<sample_type, lazier_map<sample_type, ImplicitBitArray, TieredMmapArray<slot<sample_type > > > > try12; // bad
+  typedef quiet_map<sample_type, lazier_map<sample_type, ImplicitBitArray, TieredMmapArray<slot<sample_type > > > > try12; // not better than 10
   // to try: tiered mmap bitarray at larger sizes
 
   switch(which) {
   case 0:
-    test<table, tree>(size, samples);
+    test<table>(size, samples);
     break;
   case 1:
-    test<tree, dummy>(size, samples);
+    test<tree>(size, samples);
     break;
   case 2:
-    test<table, try2>(size, samples);
+    test<try1>(size, samples);
     break;
   case 3:
-    test<try2, tree>(size, samples);
+    test<try2>(size, samples);
     break;
   case 4:
-    test<table, dummy>(size, samples);
+    test<try4>(size, samples);
     break;
   case 5:
-    test<try2, dummy>(size, samples);
+    test<try5>(size, samples);
     break;
   case 6:
-    test<try5, dummy>(size, samples);
+    test<try10>(size, samples);
     break;
-  case 7:
-    test<try10, dummy>(size, samples);
-    break;
-  case 8:
-    test<try12, dummy>(size, samples);
-    break;
+  // case 9:
+  //   test<btree, dummy>(size, samples);
+  //   break;
   }
 
   /*

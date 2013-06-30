@@ -13,7 +13,14 @@ struct lazy_map {
     Key key;
     bool occupied;
   };
-  slot * data;
+  struct data_holder {
+    slot * data;
+    data_holder(slot * x) : data(x) {}
+    slot& get(const size_t x) {
+      return data[x];
+    }
+  };
+  data_holder data;
   size_t capacity, full;
   lazy_map()
     : data(0), capacity(0), full(0) {}
@@ -22,14 +29,14 @@ struct lazy_map {
     : data(reinterpret_cast<slot*>(malloc(sizeof(slot) * capacity))), 
       capacity(capacity), full(0)
   {
-    assert (0 != data);
+    assert (0 != data.data);
     for (size_t i = 0; i < capacity; ++i) {
-      data[i].occupied = false;
+      data.data[i].occupied = false;
     }
   }
 
   bool is_occupied(const size_t i) const {
-    return data[i].occupied;
+    return data.data[i].occupied;
   }
 
   lazy_map(const lazy_map&) = delete;
@@ -41,8 +48,8 @@ struct lazy_map {
     const auto cap_mask = capacity-1;
     auto h = hashf(k) & (cap_mask);
     while (true) {
-      if (not data[h].occupied) return h;
-      if (data[h].key == k) return h;
+      if (not data.data[h].occupied) return h;
+      if (data.data[h].key == k) return h;
       h = (h+1) & cap_mask;
     }
   }
@@ -51,9 +58,9 @@ struct lazy_map {
   size_t place(const Key& k) {
     assert (full < capacity);
     const auto i = locate(k);
-    if (data[i].occupied) return static_cast<size_t>(-1);
-    data[i].occupied = true;
-    data[i].key = k;
+    if (data.data[i].occupied) return static_cast<size_t>(-1);
+    data.data[i].occupied = true;
+    data.data[i].key = k;
     ++full;
     return i;
   }
@@ -67,34 +74,34 @@ struct lazy_map {
 
   void displace(const Key& k, lazy_map * that, const size_t limit) {
     auto start = locate(k);
-    if (not data[start].occupied) return;
-    data[start].occupied = false;
+    if (not data.data[start].occupied) return;
+    data.data[start].occupied = false;
     const size_t ans = start;
     --full;
     auto i = (start + 1) & (capacity - 1);
-    while (data[i].occupied) {
+    while (data.data[i].occupied) {
       const auto h = hashf(data[i].key) & (capacity - 1);
       if (not cyclic_between(start,h,i)) {
-        data[start].occupied = true;
-        data[start].key = data[i].key;
+        data.data[start].occupied = true;
+        data.data[start].key = data[i].key;
         start = i;
-        data[i].occupied = false;
-        if (that and (start < limit) and i >= limit) that->place(data[start].key);
+        data.data[i].occupied = false;
+        if (that and (start < limit) and i >= limit) that->place(data.data[start].key);
       }
       i = (i+1) & (capacity - 1);
     }
   }
   
   void swap(lazy_map * that) {
-    std::swap(data, that->data);
+    std::swap(data.data, that->data.data);
     std::swap(capacity, that->capacity);
     std::swap(full, that->full);
   }
 
   ~lazy_map() {
-    if (0 != data) {
-      free(data);
-      data = 0;
+    if (0 != data.data) {
+      free(data.data);
+      data.data = 0;
     }
   }
 
@@ -370,7 +377,7 @@ struct ImplicitBitArray {
   }
 };
 
-const size_t ImplicitBitArray::page_size = static_cast<size_t>(-1);//sysconf(_SC_PAGE_SIZE);
+const size_t ImplicitBitArray::page_size = sysconf(_SC_PAGE_SIZE);//static_cast<size_t>(-1);
 
 template<typename T>
 struct BasicArray {

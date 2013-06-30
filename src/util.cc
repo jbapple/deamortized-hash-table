@@ -18,7 +18,7 @@ high_priority::high_priority() : old_policy(sched_getscheduler(0)), old_sp() {
   sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
   if (-1 == sched_setscheduler(0, SCHED_FIFO, &sp)) {
     std::cerr << "can't set realtime" << std::endl;
-    throw "can't set realtime";
+    //throw "can't set realtime";
     //exit(1);
   }
   
