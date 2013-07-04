@@ -108,9 +108,9 @@ void test(const unsigned size, const unsigned samples) {
 
  
     cout << static_cast<double>(j)/1000.0 << '\t'
-         << static_cast<double>(max_sample)/(static_cast<double>(multiplier) * 1000.0) << '\t'
-         << static_cast<double>(med_sample)/(static_cast<double>(multiplier) * 1000.0) << '\t'
-         << static_cast<double>(total_sample)/(1000.0 * static_cast<double>(multiplier * (j+1))) << endl;
+         << static_cast<double>(max_sample)/(2.0 * static_cast<double>(multiplier) * 1000.0) << '\t'
+         << static_cast<double>(med_sample)/(2.0 * static_cast<double>(multiplier) * 1000.0) << '\t'
+         << static_cast<double>(total_sample)/(2.0 * 1000.0 * static_cast<double>(multiplier * (j+1))) << endl;
   }
 }
 

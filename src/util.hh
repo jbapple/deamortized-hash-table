@@ -22,13 +22,7 @@ struct high_priority {
   ~high_priority();
 };
 
-size_t median(size_t * data, const size_t length) {
-  std::sort(data, data + length);
-  if (length & 1) {
-    return 2*data[length/2];
-  }
-  return data[length/2] + data[length/2 - 1];
-}
+size_t median(size_t * data, const size_t length);
 
 // reads a T from the string argument
 template<typename T>

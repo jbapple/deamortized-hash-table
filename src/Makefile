@@ -2,7 +2,7 @@
 
 HERE=Makefile
 CXX=clang++
-CXXFLAGS=-std=c++0x -O0 -DNDEBUG
+CXXFLAGS=-std=c++0x -O3 -DNDEBUG
 LDFLAGS=-lrt
 
 util.o: util.cc util.hh ${HERE}

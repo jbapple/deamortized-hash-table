@@ -36,3 +36,12 @@ high_priority::high_priority() : old_policy(sched_getscheduler(0)), old_sp() {
 high_priority::~high_priority() {
   sched_setscheduler(0, old_policy, &old_sp);
 }
+
+
+size_t median(size_t * data, const size_t length) {
+  std::sort(data, data + length);
+  if (length & 1) {
+    return 2*data[length/2];
+  }
+  return data[length/2] + data[length/2 - 1];
+}
