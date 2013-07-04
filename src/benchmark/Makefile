@@ -4,7 +4,7 @@ DATS=insert-maxtime-%.dat
 
 all: insert-maxtime.png insert-tradeoff.png
 
-CXX=g++
+CXX=clang++
 HERE=Makefile
 CXXFLAGS=-W -Wall -Wextra -Weffc++ -std=c++0x -I.. -O3 -DNDEBUG
 LDFLAGS=-lrt

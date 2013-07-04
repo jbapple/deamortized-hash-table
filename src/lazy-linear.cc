@@ -378,7 +378,7 @@ struct ImplicitBitArray {
   }
 };
 
-const size_t ImplicitBitArray::page_size = sysconf(_SC_PAGE_SIZE);//static_cast<size_t>(-1);
+const size_t ImplicitBitArray::page_size = 100000/8;//sysconf(_SC_PAGE_SIZE);//static_cast<size_t>(-1);
 
 template<typename T>
 struct BasicArray {
