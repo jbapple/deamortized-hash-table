@@ -9,7 +9,7 @@ set output "insert-tradeoff.png"
 set logscale y 10
 #set logscale x 10
 # plot "./insert-maxtime-4.dat" using 6:4:(log((($4 * 3)>1)?($4 * 3):1)) pt 7 ps variable lc rgb "#aa0000", "./insert-maxtime-5.dat" using 6:4:(log((($4 * 3)>1)?($4 * 3):1)) pt 7 ps variable lc rgb "#ff9900", "./insert-maxtime-1.dat" using 6:4:(log((($4*3)>1)?($4*3):1)) pt 7 ps variable lc rgb "#00aa00"
-set logscale x
+#set logscale x
 plot \
      "./insert-maxtime-6.dat" using 4:3:(log((($3 * 3)>1)?($3 * 3):1)) pt 6 ps variable lc rgb "#00cc00" title "mmap/tiered hash", \
      "./insert-maxtime-0.dat" using 4:3:(log((($3 * 3)>1)?($3 * 3):1)) pt 6 ps variable lc rgb "#cc0000" title "hash table", \

@@ -27,7 +27,7 @@ high_priority::high_priority() : old_policy(sched_getscheduler(0)), old_sp() {
   CPU_SET(0, &aff);
   if (false && (-1 == sched_setaffinity(0, sizeof(cpu_set_t), &aff))) {
     std::cerr << "can't set affinity" << std::endl;
-    throw "can't set affinity";
+    //throw "can't set affinity";
     //exit(1);
   }
   
