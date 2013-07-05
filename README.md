@@ -7,3 +7,5 @@ This reduction has a cost: the average insert time increases.
 For some applications, this may be a good tradeoff.
 
 ![](src/benchmark/insert-tradeoff.png "Average vs. Maximum Insert Time")
+
+This library is still in development; it is not ready for production use.
