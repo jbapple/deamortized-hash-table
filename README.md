@@ -6,6 +6,6 @@ This project provides a partially deamortized hash table that reduces the worst-
 This reduction has a cost: the average insert time increases.
 For some applications, this may be a good tradeoff.
 
-![](test/benchmark/insert-tradeoff.png "Average vs. Maximum Insert Time")
+![](test/benchmark/output/insert-tradeoff.png "Average vs. Maximum Insert Time")
 
 This library is still in development; it is not ready for production use.

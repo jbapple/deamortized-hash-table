@@ -1,16 +1,16 @@
 include ../Makefile.common
 
 .PHONY: all
-DATS=insert-maxtime-%.dat
-.PRECIOUS: ${DATS} insert-maxtime.exe insert-maxtime.dat
+DATS=output/insert-maxtime-%.dat
+.PRECIOUS: ${DATS} insert-maxtime.exe
 
-all: insert-tradeoff.png
+all: output/insert-tradeoff.png
 
-insert-tradeoff.png: insert-tradeoff.gnuplot insert-maxtime-0.dat insert-maxtime-6.dat insert-maxtime-1.dat ${HERE}
+output/insert-tradeoff.png: insert-tradeoff.gnuplot output/insert-maxtime-0.dat output/insert-maxtime-6.dat output/insert-maxtime-1.dat ${HERE}
 	gnuplot insert-tradeoff.gnuplot
 
-insert-maxtime-%.dat: insert-maxtime.exe ${HERE}
-	./insert-maxtime.exe $* >insert-maxtime-$*.dat
+output/insert-maxtime-%.dat: insert-maxtime.exe ${HERE}
+	./insert-maxtime.exe $* >output/insert-maxtime-$*.dat
 
 %.exe: %.cc util.o ${HERE}
 	${CXX} ${CXXFLAGS} -I../../src util.o $*.cc -o $@ ${LDFLAGS}
