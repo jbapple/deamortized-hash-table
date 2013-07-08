@@ -4,7 +4,7 @@
 #include <unordered_set>
 #include <set>
 #include <tuple>
-//#include "google-btree/btree_set.h"
+// #include "google-btree/btree_set.h"
 
 using namespace std;
 
@@ -50,6 +50,12 @@ size_t hash(const some & x) {
 }
 
 typedef some sample_type;
+
+struct hash_some {
+  size_t operator()(const some& x) const {
+    return hashf(x);
+  }
+};
 
 struct dummy {
   template<typename T>
@@ -191,7 +197,7 @@ int main(int argc, char ** argv) {
 
   typedef hash_map<sample_type> table;
   typedef std::set<sample_type> tree;
-  //typedef btree::btree_set<sample_type> btree;
+  // typedef btree::btree_set<sample_type> btree;
 
   typedef quiet_map<sample_type, lazy_map<sample_type> > try1;
   //typedef quiet_map<sample_type, lazier_map<sample_type, BasicBitArray> > try2;
@@ -230,8 +236,14 @@ int main(int argc, char ** argv) {
   case 6:
     test<try10>(size, samples);
     break;
+  case 7:
+    test<unordered_set<sample_type, hash_some> >(size, samples);
+    break; 
+  case 8:
+    test<try9>(size, samples);
+    break; 
   // case 9:
-  //   test<btree, dummy>(size, samples);
+  //   test<btree>(size, samples);
   //   break;
   }
 

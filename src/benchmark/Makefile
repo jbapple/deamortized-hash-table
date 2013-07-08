@@ -2,7 +2,7 @@
 DATS=insert-maxtime-%.dat
 .PRECIOUS: ${DATS} insert-maxtime.exe insert-maxtime.dat
 
-all: insert-maxtime.png insert-tradeoff.png
+all: insert-tradeoff.png
 
 CXX=clang++
 HERE=Makefile
