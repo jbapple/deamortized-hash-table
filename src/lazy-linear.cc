@@ -45,7 +45,7 @@ struct lazy_map {
   // find a key in a nonempty table
   size_t locate(const Key& k) {
     assert (nullptr != data.data); 
-    assert (capacity > 0); assert (0 == (capacity & capacity-1));
+    assert (capacity > 0); assert (0 == (capacity & (capacity-1)));
     const auto cap_mask = capacity-1;
     auto h = hashf(k) & (cap_mask);
     while (true) {
@@ -678,7 +678,7 @@ struct lazier_map {
   // find a key in a nonempty table
   size_t locate(const Key& k) {
     //assert (nullptr != data); 
-    assert (capacity > 0); assert (0 == (capacity & capacity-1));
+    assert (capacity > 0); assert (0 == (capacity & (capacity-1)));
     const auto cap_mask = capacity-1;
     auto h = hashf(k) & (cap_mask);
     while (true) {
