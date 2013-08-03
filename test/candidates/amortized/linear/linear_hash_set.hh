@@ -13,18 +13,19 @@ template<typename Key,
 class LinearHashSet {
   typedef std::size_t size_t;
 public:
-  LinearHashSet(const size_t capacity = start_size);
+  /*
+  explicit LinearHashSet(const size_t capacity);
+  LinearHashSet();
   ~LinearHashSet();
+  bool insert(const Key&);
+  void erase(const Key&);
+  bool member(const Key&);
   void swap(LinearHashSet&);
-  pair<iterator, bool> cover(const Key&);
-  
-  //const Key* find(const Key&) const; // returns nullptr if not found
-  //Key* find(const Key&); // returns nullptr if not found
-  //void erase(Key *);
+  */
 
   LinearHashSet& operator=(const LinearHashSet&) = delete;
   LinearHashSet(const LinearHashSet&) = delete;
-  LinearHashSet(LinearHashSet&&) = delete;
+
   LinearHashSet& operator=(LinearHashSet&&) = delete;
 
 private:
@@ -38,14 +39,12 @@ private:
   static const size_t down_limit = 8;
   // When the load is too low, hash table is resized to down_scale * old_capacity
   static const size_t down_scale = 2;
-  // The percentage of tombstoned slots is never more than 100/deleted_limit
-  static const size_t tombstoned_limit = 3;
-  // empty hash tables start with this size
-  static const size_t start_size = 0;
+  // TODO: static assert these numbers are in a good ratio to each other
   
+  // TODO: should these be const? be elided in favor of referencing some globals?
   Hash hasher;
   Equal equaler;
-  size_t capacity, full_count, tombstoned_count;
+  size_t capacity, size;
   struct Slot {
     bool occupied;
     Key key;
@@ -54,33 +53,38 @@ private:
 
 public:
 
-  LinearHashSet(const size_t capacity = start_size)
-    : hasher(), equaler(), capacity(capacity), full_count(0), tombstoned_count(0),
-      data( (0 == capacity) ? NULL : 
-            reinterpret_cast<Slot*>(malloc(sizeof(Slot) * capacity))) 
+  LinearHashSet()
+    : hasher(), equaler(), capacity(0), size(0), data(NULL)
+  {}
+
+  explicit LinearHashSet(const size_t capacity)
+    : hasher(), equaler(), capacity(capacity), size(0), 
+      data(capacity ? reinterpret_cast<Slot*>(malloc(capacity * sizeof(Slot))) : NULL)
   {
     for (size_t i = 0; i < capacity; ++i) {
-      data[i].status = Status::EMPTY;
+      data[i].occupied = false;
     }
   }
 
-  struct InsertResult {
-    enum class Presence {
-      ABSENT, PRESENT
-    } presence;
-    Slot* location;
-  };
+  explicit LinearHashSet(LinearHashSet&& that) 
+    : hasher(), equaler(), capacity(that.capacity), size(that.size), data(that.data)
+  {
+    that.capacity = 0;
+    that.size = 0;
+    that.data = NULL;
+  }
+    
 
 private:
 
   // find a key. capacity must be > 0. if key is not present, returns
   // location where it would be if it were newly placed.
   size_t locate(const Key& k) const {
-    const auto cap_mask = capacity-1;
+    const size_t cap_mask = capacity-1;
     auto h = hasher(k) & cap_mask;
     while (true) {
-      if (data[h].status != Status::FULL) return h; // TODO: this is incorrec twhen searching for a key that is in the table
-      if (equaler(data[h].key, k))        return h;
+      if (not data[h].occupied)    return h;
+      if (equaler(data[h].key, k)) return h;
       h = (h+1) & cap_mask;
     }
   }
@@ -91,61 +95,53 @@ private:
             or ((i < j) and (k < i))
             or ((j <= k) and (k < i)));
   }
+  
+public:
+  void erase(const Key& k) {
+    if (size * down_scale < capacity) downsize();
+    if (NULL == data) return;
+    return nr_erase(k);
+  }
 
-  void displace(const Key& k, lazy_map * that, const size_t limit) {
-    auto start = locate(k);
+private:
+
+  void nr_erase(const Key& k) {
+    const size_t cap_mask = capacity-1;
+    size_t start = locate(k); // the empty location
     if (not data[start].occupied) return;
     data[start].occupied = false;
-    const size_t ans = start;
-    --full;
-    auto i = (start + 1) & (capacity - 1);
-    while (data.data[i].occupied) {
-      const auto h = hasher(data[i].key) & (capacity - 1);
+    data[start].key.~Key();
+    --size;
+    size_t i = (start + 1) & cap_mask;
+    while (data[i].occupied) {
+      const size_t h = hasher(data[i].key) & cap_mask;
       if (not cyclic_between(start,h,i)) {
-        data.data[start].occupied = true;
-        data.data[start].key = data[i].key;
+        data[start].occupied = true;
+        new (&data[start].key) Key(std::move(data[i].key));
         start = i;
-        data.data[i].occupied = false;
+        data[i].occupied = false;
+        data[i].key.~Key();
       }
-      i = (i+1) & (capacity - 1);
+      i = (i+1) & cap_mask;
     }
   }
 
-
-  // place a key in a non-empty table
-  InsertResult place(const Key& k) {
-    Slot& s = data[locate(k)];
-    InsertResult ans = { InsertResult::Presence::ABSENT, &s };
-    switch (s.status) {
-    case Status::TOMBSTONED:
-      --tombstoned_count;
-      // fall through:
-    case Status::EMPTY:
-      s.status = Status::FULL;
-      s.key.~Key();
-      new (&s.key) Key(k);
-      ++full_count;
-      return ans;
-    case Status::FULL:
-      ans.presence = InsertResult::Presence::PRESENT;
-      return ans;
-    default:
-      assert(false);
-    }
+public:
+  bool insert(const Key& k) {
+    if (NULL == data) upsize();
+    if (size * up_limit > capacity) upsize();
+    return nr_insert(k);
   }
 
-  bool displace(const Key& k) {
-    Slot& s = data[locate(k)];
-    if (Status::FULL == s.status) {
-      ++tombstoned_count;
-      --full_count;
-      s.status = Status::DELETED;
-      return true;
-    }
-    return false;
+private:
+  bool nr_insert(const Key& k) {
+    const size_t i = locate(k);
+    if (data[i].occupied) return false;
+    new (&data[i].key) Key(k);
+    return true;
   }
-
-
+  
+private:
   void upsize() {
     const auto new_size = (0 == capacity) ? 1 : (capacity * up_scale);
     resize(new_size);
@@ -156,80 +152,42 @@ private:
     resize(new_size);
   }
 
-  void samesize() {
-    resize(capacity);
-  }
-
   void resize(const size_t new_size) {
     LinearHashSet* that = new LinearHashSet(new_size);
     for (size_t i = 0; i < capacity; ++i) {
-      if (Status::FULL == data[i].status) {
-        const InsertResult res = that->place(data[i].key);
-        assert (InsertResult::Presence::ABSENT == res.presence);
+      if (data[i].occupied) {
+        that->nr_insert(data[i].key);
       }
     }
-    swap(that);
+    swap(*that);
     delete that;
   }
 
+public:
+
   // TODO: overload for std::swap
   // TODO: copy and move and assignment constructors
-  void swap(LinearHashSet * that) {
-    std::swap(data, that->data);
-    std::swap(capacity, that->capacity);
-    std::swap(full_count, that->full_count);
-    std::swap(tombstoned_count, that->tombstoned_count);
+  void swap(LinearHashSet & that) {
+    std::swap(capacity, that.capacity);
+    std::swap(size, that.size);
+    std::swap(data, that.data);
   }
 
 
 public:
   ~LinearHashSet() {
     if (NULL != data) {
+      for (size_t i = 0; i < capacity; ++i) {
+        if (data[i].occupied) {
+          data[i].key.~Key();
+        }
+      }
       free(data);
       data = NULL;
+      size = 0;
+      capacity = 0;
     }
   }
-
-  void erase(const iterator s) {
-    s->status = Status::TOMBSTONED;
-    s->key.~Key(); // TODO: make sure the right destructors are called, the right move constructors are called
-    if (full_count * down_limit < capacity) {
-      downsize();
-    } else if (tombstoned_count * tombstoned_limit > capacity) {
-      samesize();
-    }    
-  }
-
-  InsertResult cover(const Key& k) {
-    if (full_count == capacity) {
-      assert (capacity <= 1);
-      upsize();
-    } else if (full_count * up_limit > capacity) {
-      upsize();
-    }
-
-    return place(k);
-  }
-
-  void insert(iterator const s) {
-  }
-
-  iterator find(const Key& k) {
-    if (0 == capacity) return nullptr;
-    const size_t i = locate(k);
-    if (Status::FULL == data[i].status) {
-      return &data[i];
-    }
-    return nullptr;
-  }
-
-
 };
-
-template<typename Key, typename Hash, typename Equal>
-void swap(LinearHashSet<Key, Hash, Equal>& x, LinearHashSet<Key,Hash,Equal>& y) {
-  x.swap(y);
-}
-
 
 #endif // LINEAR_HASH_SET
