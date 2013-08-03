@@ -25,7 +25,7 @@ public:
 
   LinearHashSet& operator=(const LinearHashSet&) = delete;
   LinearHashSet(const LinearHashSet&) = delete;
-
+  LinearHashSet(LinearHashSet&&) = delete;
   LinearHashSet& operator=(LinearHashSet&&) = delete;
 
 private:
@@ -66,6 +66,7 @@ public:
     }
   }
 
+  /*
   explicit LinearHashSet(LinearHashSet&& that) 
     : hasher(), equaler(), capacity(that.capacity), size(that.size), data(that.data)
   {
@@ -73,7 +74,7 @@ public:
     that.size = 0;
     that.data = NULL;
   }
-    
+  */  
 
 private:
 
@@ -97,6 +98,12 @@ private:
   }
   
 public:
+  bool member(const Key& k) {
+    if (NULL == data) return false;
+    const size_t i = locate(k);
+    return data[i].occupied && equaler(data[i].key, k);
+  }
+
   void erase(const Key& k) {
     if (size * down_scale < capacity) downsize();
     if (NULL == data) return;
