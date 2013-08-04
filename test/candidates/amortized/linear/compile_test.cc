@@ -1,4 +1,7 @@
+#include <string>
+
 #include "linear_hash_set.hh"
+#include "linear_hash_map.hh"
 
 struct foo {
   const int x;
@@ -27,4 +30,12 @@ int main() {
   x.insert(foo(1, 2.0));
   x.erase(foo(3, 4.0));
   y.member(foo(5, 6.0));
+  LinearHashMap<foo, foo, foo_hash> z;
+  LinearHashMap<foo, std::string, foo_hash> w(16);
+  z.insert(foo(7, 8.0), foo(9, 10.0));
+  w.insert(foo(15, 16.0), "");
+  w.erase(foo(11, 12.0));
+  w.member(foo(13, 14.0));
+  z.erase(foo(11, 12.0));
+  z.member(foo(13, 14.0));
 }
