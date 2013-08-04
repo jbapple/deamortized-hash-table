@@ -45,3 +45,9 @@ size_t median(size_t * data, const size_t length) {
   }
   return data[length/2] + data[length/2 - 1];
 }
+
+vector<size_t> percentiles(const vector<size_t>& data, const vector<double>& ) {
+  auto foo = data;
+  sort(foo.begin(), foo.end());
+  return vector<size_t>(1,foo[foo.size()/2]);
+}

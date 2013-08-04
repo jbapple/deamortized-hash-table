@@ -6,6 +6,7 @@
 #include <vector>
 #include <sstream>
 #include <unordered_set>
+#include <unordered_map>
 #include <set>
 #include <algorithm>
 
@@ -14,6 +15,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+using std::vector;
+using std::pair;
+using std::unordered_map;
 
 struct high_priority {
   const int old_policy;
@@ -24,6 +29,48 @@ struct high_priority {
 
 size_t median(size_t * data, const size_t length);
 
+vector<size_t> percentiles(const vector<size_t>& data, const vector<double>& tiers);
+
+//vector<size_t> draws(const size_t limit, const size_t resolution)
+
+// get_time returns the number of CPU seconds taken by the current
+// process as a floating point number. Only works on Linux. Be sure to
+// link with -lrt.
+size_t get_time();
+
+template<void (*f)(const size_t)> 
+vector<pair<size_t, vector<size_t> > > 
+median_time(const size_t limit, 
+            const size_t resolution, 
+            const size_t samples) {
+  static const vector<double> tiers(1, 0.5);
+  unordered_map<size_t, vector<size_t> > measurements;
+  srand(0);
+  for (size_t i = 0; i < samples; ++i) {
+    const size_t place = rand() % resolution;
+    size_t n = 0;
+    if (rand()%2) {
+      n = (limit * place) / resolution;
+    } else {
+      n = static_cast<size_t>(round(pow(static_cast<double>(limit), static_cast<double>(place)/static_cast<double>(resolution))));
+    }
+    __sync_synchronize();
+    const size_t begin = get_time();
+    __sync_synchronize();
+    f(n);
+    __sync_synchronize();
+    const size_t end = get_time();
+    __sync_synchronize();
+    measurements[n].push_back(end-begin);
+  }
+  vector<pair<size_t, vector<size_t> > > ans;
+  for(const auto& i : measurements) {
+    ans.push_back(make_pair(i.first, percentiles(i.second, tiers)));
+  }
+  sort(ans.begin(), ans.end());
+  return ans;
+}
+
 // reads a T from the string argument
 template<typename T>
 T read(const std::string& x) {
@@ -33,10 +80,6 @@ T read(const std::string& x) {
   return ans;
 }
 
-// get_time returns the number of CPU seconds taken by the current
-// process as a floating point number. Only works on Linux. Be sure to
-// link with -lrt.
-size_t get_time();
 
 // unique_pseudo_random_bytes(n) returns n unique values from a
 // pseudo-random number generator for a POD type T
