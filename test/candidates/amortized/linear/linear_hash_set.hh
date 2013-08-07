@@ -98,10 +98,13 @@ private:
   }
   
 public:
-  bool member(const Key& k) {
-    if (NULL == data) return false;
+  Key* find(const Key& k) {
+    if (NULL == data) return nullptr;
     const size_t i = locate(k);
-    return data[i].occupied && equaler(data[i].key, k);
+    if (data[i].occupied && equaler(data[i].key, k)) {
+      return &data[i].key;
+    }
+    return nullptr;
   }
 
   void erase(const Key& k) {

@@ -4,6 +4,7 @@
 
 // TODO: boost::optional
 // TODO: use bool here as bool of "present" in hash table
+// TODO: use std::aligned_storage
 template<typename Key, typename Value>
 struct Both {
   Key key;
@@ -46,6 +47,9 @@ struct Both {
     key = std::move(that.key);
     return *this;
   }
+  Value & get_value() {
+    return *reinterpret_cast<Value*>(&value);
+  }
 };
 
 
@@ -85,12 +89,11 @@ public:
   bool insert(const Key& k, const Value & v) {
     return root.insert(KeyValue(k,v));
   }   
-  void erase(const Key& k) {
-    
+  void erase(const Key& k) {    
     root.erase(KeyValue(k));
   }
-  bool member(const Key& k) {
-    return root.member(KeyValue(k));
+  KeyValue* find(const Key& k) {
+    return root.find(KeyValue(k));
   }
   void swap(LinearHashMap& that) {
     root.swap(that.root);
