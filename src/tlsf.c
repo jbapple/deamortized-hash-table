@@ -11,6 +11,7 @@
 /* #endif */
 
 #include <stddef.h>
+#include <assert.h>
 
 #define word_bytes sizeof(size_t)
 #define word_bits (word_bytes * 8)
@@ -40,6 +41,28 @@ struct roots {
   size_t fine[big_buckets];
   struct block * top[big_buckets][word_bits];
 };
+
+int get_mask_bit(const size_t x, const size_t i) {
+  return (x >> i) & ((size_t)1);
+}
+
+void test_roots_setbits(const struct roots * const r) {
+  for (size_t i = 0; i < big_buckets; ++i) {
+    if (get_mask_bit(r->coarse, i)) {
+      assert (r->fine[i] > 0);
+      for (size_t j = 0; j < word_bits; ++j) {
+        if (get_mask_bit(r->fine[i], j)) {
+          assert (NULL != r->top[i][j]);
+        } else {
+          assert (NULL == r->top[i][j]);
+        }
+      }
+    } else {
+      assert (0 == r->fine[i]);
+    }
+  }
+}
+
 
 //#define MAX(x,y) ((x) > (y)) ? (x) : (y);
 
@@ -299,11 +322,51 @@ struct roots * init_tlsf(const size_t bsize) {
 
 #include <stdio.h>
 
+void test_roots_sizes(const struct roots * const r) {
+  for (size_t i = 0; i < big_buckets; ++i) {
+    for (size_t j = 0; j < word_bits; ++j) {
+      struct block * here = r->top[i][j];
+      size_t begin = 0, end = 0;
+      place_range(i, j, &begin, &end);
+      while (NULL != here) {
+        assert (get_size(here->size) >= begin);
+        assert (get_size(here->size) <= end);
+        here = here->payload[0];
+      }
+    }
+  }
+}
+
+void test_roots() {
+  for (size_t i = 0; i < big_buckets; ++i) {
+    for (size_t j = 0; j < word_bits; ++j) {
+      struct roots * foo = NULL;
+      while (1) {
+        size_t many = rword();
+        if (many > max_alloc) continue;
+        while (NULL == foo) {
+          foo = init_tlsf(many);
+          many >>= 1;
+        }
+        break;
+      }
+      test_roots_setbits(foo);
+      test_roots_sizes(foo);
+      free(foo);
+    }
+  }
+  struct roots * const foo = init_tlsf(1);
+  test_roots_setbits(foo);
+  test_roots_sizes(foo);
+  free(foo);
+  
+  
+}
+
 int main() {
   printf("%zu\n", sizeof(struct block));
   test_place();
-  struct roots * foo = init_tlsf(1);
-  free(foo);
+  test_roots();
 }
 
 /*
