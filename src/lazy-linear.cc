@@ -7,6 +7,7 @@ using namespace std;
 
 size_t hashf(int x) {return static_cast<size_t>(x);}
 
+
 template<typename Key>
 struct lazy_map {
   struct slot {
@@ -752,8 +753,7 @@ template<typename Key, typename Base>
 struct quiet_map {
   Base here, there;
   size_t progress;
-  
-  
+    
   quiet_map() : here(), there(), progress(0) {}
 
   size_t find(const Key& k) {

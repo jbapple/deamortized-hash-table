@@ -14,22 +14,54 @@ void bench_calloc(const size_t n) {
 }
 
 void bench_malloc(const size_t n) {
-  //char * foo = reinterpret_cast<char *>(malloc(n));
-  //foo[n/2] = 'a';
-  void * foo = malloc(n);
-  free(foo);
+  static const size_t many = 4;
+  static void* all[many];
+  static size_t last = 0;
+  free(all[last]);
+  all[last] = malloc(n);
+  last = (last+1) & (many-1);
+  /*
+  static const size_t many = 64;
+  void* all[many];
+  for (size_t i = 0; i < many; ++i) {
+    all[i] = malloc(n);
+  }
+  for (size_t i = 0; i < many; ++i) {
+    free(all[i]);
+  }
+  */
 }
 
 
 void bench_malloc_touch(const size_t n) {
   char * foo = reinterpret_cast<char *>(malloc(n));
-  foo[n/2] = 'a';
+  for (size_t i = 0; i < n; i += 4096) {
+    foo[i] += 'a';
+  }
   free(foo);
 }
 
 void bench_mmap(const size_t n) {
-  void * foo = mmap(NULL, n, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-  munmap(foo, n);
+  static const size_t many = 4;
+  static void* all[many];
+  static size_t sizes[many] = {};
+  static size_t last = 0;
+  munmap(all[last], sizes[last]);
+  all[last] = mmap(NULL, n, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  sizes[last] = n;
+  last = (last+1) & (many-1);
+  /*
+  static const size_t many = 64;
+  void* all[many];
+  for (size_t i = 0; i < many; ++i) {
+    all[i] = mmap(NULL, n, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  }
+  for (size_t i = 0; i < many; ++i) {
+    munmap(all[i], n);
+  }
+  */
+  //  void * foo = mmap(NULL, n, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  //munmap(foo, n);
 }
 
 void bench_new(const size_t n) {
@@ -38,7 +70,7 @@ void bench_new(const size_t n) {
 }
 
 int main() {
-  auto bar = median_time<bench_new>(100000, 1000, 1000*2*1000);
+  auto bar = median_time<bench_malloc>(10000000, 1000, 10000*2*1000);
   for (auto foo : bar) {
     cout << foo.first << '\t' << foo.second[0] << endl;
   }
