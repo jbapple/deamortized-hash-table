@@ -30,10 +30,11 @@ struct block {
      space) is owned by the same memory pool. */
   size_t size; 
   // first item is next in free list
+  // need to doubly-link free list to remove items from it in case of coalescing
   struct block * payload[]; // TODO: alignment
 };
 
-#define big_buckets (word_bits - 2*word_log + 4)
+#define big_buckets (word_bits - 2*word_log + 3)
 
 struct roots {
   //void * end; // why do we need this?
@@ -71,34 +72,34 @@ void test_roots_setbits(const struct roots * const r) {
 void get_place(const size_t bytes, size_t * const head, size_t * const tail) {
   /* incorrect: might overflow */
   /* const size_t words = (bytes + sizeof(size_t) - 1)/sizeof(size_t); */
-  const size_t words = bytes/word_bytes + ((bytes & (word_bytes - 1)) > 0);
+  const size_t dwords = bytes/(2*word_bytes) + ((bytes & ((2*word_bytes) - 1)) > 0);
 
-  if (words < 1) {
+  if (dwords < 1) {
     *head = 0;
     *tail = 0;
     return;
   }
 
-  // floor(log_2(words))
-  const int lg = sizeof(long long)*8 - __builtin_clzll(words) - 1;
+  // floor(log_2(dwords))
+  const int lg = sizeof(long long)*8 - __builtin_clzll(dwords) - 1;
   //printf("words: %d, lg floor: %d\n", words, lg);
   if (lg >= (int)word_log) {
     *head = 1 + lg - word_log;
-    *tail = (words - (((size_t)1) << lg)) >> (*head - 1);
+    *tail = (dwords - (((size_t)1) << lg)) >> (*head - 1);
   } else {
     *head = 0;
-    *tail = words;
+    *tail = dwords;
   }
 }
 
 void place_range(const size_t head, const size_t tail, size_t * const min, size_t * const max) {
   if (0 == head) {
-    *min = tail * word_bytes;
+    *min = tail * word_bytes * 2;
     *max = *min;
     return;
   }
-  *min = word_bytes * ((((size_t)1) << (word_log + head - 1)) + tail * (((size_t)1) << (head - 1)));
-  *max = *min + ((((size_t)1) << (head - 1)) - 1) * word_bytes;
+  *min = 2 * word_bytes * ((((size_t)1) << (word_log + head - 1)) + tail * (((size_t)1) << (head - 1)));
+  *max = *min + ((((size_t)1) << (head - 1)) - 1) * word_bytes * 2;
 }
 #include <stdlib.h>
 
@@ -114,10 +115,10 @@ size_t rword() {
 #include <assert.h>
 #include <stdio.h>
 
-const size_t max_alloc = 2*((((size_t)1) << (word_bits - 1)) - (word_bytes/2));
+const size_t max_alloc = 2*((((size_t)1) << (word_bits - 1)) - (word_bytes));
 
 void test_max_alloc() {
-  const size_t max = max_alloc + word_bytes - 1;
+  const size_t max = max_alloc + 2*word_bytes - 1;
   for (size_t i = 0; i < word_bytes; ++i) {
     assert (0xff == ((const unsigned char *)&max)[i]);
   }
@@ -158,7 +159,7 @@ void test_place_range_contiguous() {
     for (size_t j = 0; j < word_bits; ++j) {
       if (!((i == 0) && (j == 0))) {
 	place_range(i, j, &b, &c);
-	assert (a + word_bytes == b);
+	assert (a + 2*word_bytes == b);
 	a = c;
       }
     }
@@ -231,8 +232,8 @@ int get_size_bit(size_t const x) {
   return x & ((size_t)1);
 }
 
-int get_ptr_bit(void ** x) {
-  return ((size_t)(*x) & ((size_t)1));
+int get_ptr_bit(struct block * x) {
+  return ((size_t)x & ((size_t)1));
 }
 
 void unset_size_bit(size_t * const x) {
@@ -247,12 +248,26 @@ size_t get_size(size_t const x) {
   return (x & ~((size_t)1));
 }
 
+size_t get_block_size(const struct block * const x) {
+  return get_size(x->size);
+}
+
+void set_block_size(struct block * const x, const size_t n) {
+  const int was_set = get_size_bit(x->size);
+  x->size = n;
+  if (was_set) set_size_bit(&x->size);
+}
+
 struct block * get_ptr(struct block * x) {
   return (struct block *)((size_t)(x) & (~((size_t)1)));
 }
 
 void mark_free(struct block * const b) {
   set_ptr_bit(&b->left);
+}
+
+int check_free(struct block * const b) {
+  return get_ptr_bit(b->left);
 }
 
 void mark_used(struct block * const b) {
@@ -294,7 +309,7 @@ struct block * const displace(struct roots * const r, const size_t head, const s
 */
 
 struct roots * init_tlsf(const size_t bsize) {
-  const size_t size = word_bytes * (bsize/word_bytes + ((bsize & (word_bytes - 1)) > 0));
+  const size_t size = 2*word_bytes * (bsize/(2*word_bytes) + ((bsize & ((2*word_bytes) - 1)) > 0));
   const size_t get = size + sizeof(struct roots) + sizeof(struct block);
   void * whole = malloc(get);
   if (NULL == whole) return NULL;
@@ -321,6 +336,27 @@ struct roots * init_tlsf(const size_t bsize) {
 }
 
 #include <stdio.h>
+
+/*
+
+TOTEST: 
+free lists are not circular
+(with valgrind) left and right links always work
+left links are actually less
+stored blocks sum up to the expected size
+
+*/
+  
+/*
+void tlsf_free(struct roots * const r, void * const p) {
+  struct block * const b = ((char *)p) - 2 * word_bytes;
+  mark_free(b);
+  struct block * const left = get_ptr(b->left);
+  if ((NULL != left) && get_free(left)) {
+    set_block_size
+  }
+}
+*/
 
 void test_roots_sizes(const struct roots * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
@@ -358,9 +394,7 @@ void test_roots() {
   struct roots * const foo = init_tlsf(1);
   test_roots_setbits(foo);
   test_roots_sizes(foo);
-  free(foo);
-  
-  
+  free(foo);  
 }
 
 int main() {
