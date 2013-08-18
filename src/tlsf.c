@@ -72,34 +72,34 @@ void test_roots_setbits(const struct roots * const r) {
 void get_place(const size_t bytes, size_t * const head, size_t * const tail) {
   /* incorrect: might overflow */
   /* const size_t words = (bytes + sizeof(size_t) - 1)/sizeof(size_t); */
-  const size_t dwords = bytes/(2*word_bytes) + ((bytes & ((2*word_bytes) - 1)) > 0);
+  const size_t dwords = bytes/(word_bytes) + ((bytes & (word_bytes - 1)) > 0);
 
-  if (dwords < 1) {
+  if (dwords <= 2) {
     *head = 0;
     *tail = 0;
     return;
   }
 
-  // floor(log_2(dwords))
-  const int lg = sizeof(long long)*8 - __builtin_clzll(dwords) - 1;
+  // floor log_2
+  const int lg = sizeof(long long)*8 - __builtin_clzll(dwords+word_bits-2) - 1;
   //printf("words: %d, lg floor: %d\n", words, lg);
-  if (lg >= (int)word_log) {
-    *head = 1 + lg - word_log;
-    *tail = (dwords - (((size_t)1) << lg)) >> (*head - 1);
-  } else {
+  if (lg <= (int)word_log) {
     *head = 0;
-    *tail = dwords;
-  }
+    *tail = dwords - 2;
+  } else {
+    *head = lg - word_log;
+    *tail = (dwords + word_bits - 2 - (((size_t)1) << (word_log + (*head)))) >> (*head);
+  } 
 }
 
 void place_range(const size_t head, const size_t tail, size_t * const min, size_t * const max) {
   if (0 == head) {
-    *min = tail * word_bytes * 2;
+    *min = (tail + 2) * word_bytes;
     *max = *min;
     return;
   }
-  *min = 2 * word_bytes * ((((size_t)1) << (word_log + head - 1)) + tail * (((size_t)1) << (head - 1)));
-  *max = *min + ((((size_t)1) << (head - 1)) - 1) * word_bytes * 2;
+  *min = word_bytes * ((((((size_t)1) << head) - 1) << word_log) + (((size_t)1) << head) * tail + 2);
+  *max = *min + ((((size_t)1) << head) - 1) * word_bytes;
 }
 #include <stdlib.h>
 
@@ -115,13 +115,16 @@ size_t rword() {
 #include <assert.h>
 #include <stdio.h>
 
-const size_t max_alloc = 2*((((size_t)1) << (word_bits - 1)) - (word_bytes));
+const size_t max_alloc = word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1);
 
 void test_max_alloc() {
-  const size_t max = max_alloc + 2*word_bytes - 1;
+  /*
+  const size_t ones = max_alloc - 2;
+  const size_t top = max_alloc - 
   for (size_t i = 0; i < word_bytes; ++i) {
     assert (0xff == ((const unsigned char *)&max)[i]);
   }
+  */
 }
 
 void test_place_limited() {
@@ -159,7 +162,7 @@ void test_place_range_contiguous() {
     for (size_t j = 0; j < word_bits; ++j) {
       if (!((i == 0) && (j == 0))) {
 	place_range(i, j, &b, &c);
-	assert (a + 2*word_bytes == b);
+	assert (a + word_bytes == b);
 	a = c;
       }
     }
@@ -344,7 +347,7 @@ free lists are not circular
 (with valgrind) left and right links always work
 left links are actually less
 stored blocks sum up to the expected size
-
+double links in free lists make sense
 */
   
 /*
