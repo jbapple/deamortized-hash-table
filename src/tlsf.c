@@ -60,11 +60,12 @@ int get_size_bit(size_t const x) {
 int get_ptr_bit(struct block * x) {
   return ((size_t)x & ((size_t)1));
 }
-*/
+
 
 void unset_size_bit(size_t * const x) {
   *x &= ~((size_t)1);
 }
+*/
 
 void unset_ptr_bit(struct block ** x) {
   *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
@@ -131,11 +132,11 @@ int check_end(struct block * const b) {
   return 1 - get_size_bit(b->size);
 }
 */
-
+/*
 void mark_end(struct block * const b) {
   unset_size_bit(&b->size);
 }
-
+*/
 /*
 void mark_not_end(struct block * const b) {
   set_size_bit(&b->size);
@@ -364,7 +365,7 @@ void test_place() {
 
 void place(struct block * const b, struct roots * const r) {
   size_t head, tail;
-  get_place(b->size, &head, &tail);
+  get_place(block_get_size(b), &head, &tail);
   set_mask_bit(&r->coarse, head);
   set_mask_bit(&r->fine[head], tail); 
   block_set_freedom(b, 1);
@@ -411,7 +412,7 @@ struct roots * init_tlsf(const size_t bsize) {
   first->payload[0] = NULL;
   first->payload[1] = NULL;
   block_set_freedom(first, 1);
-  mark_end(first);
+  block_set_end(first, 1);
   place(first, ans);
   return ans;
 }
