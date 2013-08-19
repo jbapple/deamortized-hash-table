@@ -38,11 +38,13 @@ struct block {
 
 struct roots {
   //void * end; // why do we need this?
+  // TODO: better names than coarse and fine?
   size_t coarse;
   size_t fine[big_buckets];
   struct block * top[big_buckets][word_bits];
 };
 
+// TODO: make more implementation hiding, without osing performance of inline
 
 // TODO: make_block function
 int block_get_end(const struct block * const x) {
@@ -130,8 +132,13 @@ void mark_not_end(struct block * const b) {
 }
 */
 
-void set_mask_bit(size_t * const x, const size_t i) {
-  *x |= ((size_t)1) << i;
+// TODO: make this "coarse set" and operate on block
+void mask_set_bit(size_t * const x, const size_t i, const int b) {
+  if (b) {
+    *x |= ((size_t)1) << i;
+  } else {
+    *x &= ~(((size_t)1) << i);
+  }
 }
 
 
@@ -353,8 +360,8 @@ void test_place() {
 void place(struct block * const b, struct roots * const r) {
   size_t head, tail;
   get_place(block_get_size(b), &head, &tail);
-  set_mask_bit(&r->coarse, head);
-  set_mask_bit(&r->fine[head], tail); 
+  mask_set_bit(&r->coarse, head, 1);
+  mask_set_bit(&r->fine[head], tail, 1); 
   block_set_freedom(b, 1);
   b->payload[0] = NULL;
   b->payload[1] = r->top[head][tail];
