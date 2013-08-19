@@ -43,6 +43,40 @@ struct roots {
   struct block * top[big_buckets][word_bits];
 };
 
+/*
+void * pop_bigger(struct roots * r, const size_t n) {
+  const size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
+  size_t x = word_bits, y = word_bits;
+  get_place(size, x, y);
+  unsigned long long shift_x = r->coarse << x;
+  if (0 == shift_x) { return NULL; }
+  int place = x + sizeof(long long)*8 - __builtin_clzll(shift_x);
+  const unsigned long long shift_y = r->find[place] << y;
+  int here = word_bits;
+  if (0 != shift_y) {
+    here = y + sizeof(long long)*8 - __builtin_clzll(shift_y);
+  } else {
+    shift_x = r->coarse << (x+1);
+    if (0 == shift_x) { return NULL; }
+    place = x + sizeof(long long)*8 - __builtin_clzll(shift_x);
+    here = y + sizeof(long long)*8 - __builtin_clzll(r->find[place]);
+  }
+  struct block * b = r->top[place][place];
+  mark_used(b);
+  remove_from_list(r, b);
+  if (size >= get_size(b) + 2*word_bytes + sizeof(struct block)) {
+    struct block * const next = b->payload + size/word_bytes;
+    next->left = b;
+    next->size = block_get_size(b) - size - sizeof(struct block);
+    mark_free(next);
+    if (check_end(b)) { mark_end(next); }
+    block_set_size(b, size/word_bytes);
+    mark_not_end(b);
+  }
+  return b->payload;  
+}
+*/
+
 int get_mask_bit(const size_t x, const size_t i) {
   return (x >> i) & ((size_t)1);
 }
@@ -275,6 +309,10 @@ int check_free(struct block * const b) {
 
 void mark_used(struct block * const b) {
   unset_ptr_bit(&b->left);
+}
+
+int check_end(struct block * const b) {
+  return 1 - get_size_bit(b->size);
 }
 
 void mark_end(struct block * const b) {
