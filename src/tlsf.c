@@ -43,6 +43,77 @@ struct roots {
   struct block * top[big_buckets][word_bits];
 };
 
+void set_size_bit(size_t * const x) {
+  *x |= ((size_t)1);
+}
+
+void set_ptr_bit(struct block ** x) {
+  *x = (struct block *)((size_t)(*x) | ((size_t)1));
+}
+
+int get_size_bit(size_t const x) {
+  return x & ((size_t)1);
+}
+
+int get_ptr_bit(struct block * x) {
+  return ((size_t)x & ((size_t)1));
+}
+
+void unset_size_bit(size_t * const x) {
+  *x &= ~((size_t)1);
+}
+
+void unset_ptr_bit(struct block ** x) {
+  *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
+}
+
+size_t get_size(size_t const x) {
+  return (x & ~((size_t)1));
+}
+
+size_t get_block_size(const struct block * const x) {
+  return get_size(x->size);
+}
+
+void set_block_size(struct block * const x, const size_t n) {
+  const int was_set = get_size_bit(x->size);
+  x->size = n;
+  if (was_set) set_size_bit(&x->size);
+}
+
+struct block * get_ptr(struct block * x) {
+  return (struct block *)((size_t)(x) & (~((size_t)1)));
+}
+
+void mark_free(struct block * const b) {
+  set_ptr_bit(&b->left);
+}
+
+int check_free(struct block * const b) {
+  return get_ptr_bit(b->left);
+}
+
+void mark_used(struct block * const b) {
+  unset_ptr_bit(&b->left);
+}
+
+int check_end(struct block * const b) {
+  return 1 - get_size_bit(b->size);
+}
+
+void mark_end(struct block * const b) {
+  unset_size_bit(&b->size);
+}
+
+void mark_not_end(struct block * const b) {
+  set_size_bit(&b->size);
+}
+
+void set_mask_bit(size_t * const x, const size_t i) {
+  *x |= ((size_t)1) << i;
+}
+
+
 /*
 void * pop_bigger(struct roots * r, const size_t n) {
   const size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
@@ -257,75 +328,6 @@ void test_place() {
   test_place_range_contiguous();
 }
 
-void set_size_bit(size_t * const x) {
-  *x |= ((size_t)1);
-}
-
-void set_ptr_bit(struct block ** x) {
-  *x = (struct block *)((size_t)(*x) | ((size_t)1));
-}
-
-int get_size_bit(size_t const x) {
-  return x & ((size_t)1);
-}
-
-int get_ptr_bit(struct block * x) {
-  return ((size_t)x & ((size_t)1));
-}
-
-void unset_size_bit(size_t * const x) {
-  *x &= ~((size_t)1);
-}
-
-void unset_ptr_bit(struct block ** x) {
-  *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
-}
-
-size_t get_size(size_t const x) {
-  return (x & ~((size_t)1));
-}
-
-size_t get_block_size(const struct block * const x) {
-  return get_size(x->size);
-}
-
-void set_block_size(struct block * const x, const size_t n) {
-  const int was_set = get_size_bit(x->size);
-  x->size = n;
-  if (was_set) set_size_bit(&x->size);
-}
-
-struct block * get_ptr(struct block * x) {
-  return (struct block *)((size_t)(x) & (~((size_t)1)));
-}
-
-void mark_free(struct block * const b) {
-  set_ptr_bit(&b->left);
-}
-
-int check_free(struct block * const b) {
-  return get_ptr_bit(b->left);
-}
-
-void mark_used(struct block * const b) {
-  unset_ptr_bit(&b->left);
-}
-
-int check_end(struct block * const b) {
-  return 1 - get_size_bit(b->size);
-}
-
-void mark_end(struct block * const b) {
-  unset_size_bit(&b->size);
-}
-
-void mark_not_end(struct block * const b) {
-  set_size_bit(&b->size);
-}
-
-void set_mask_bit(size_t * const x, const size_t i) {
-  *x |= ((size_t)1) << i;
-}
 
 void place(struct block * const b, struct roots * const r) {
   size_t head, tail;
