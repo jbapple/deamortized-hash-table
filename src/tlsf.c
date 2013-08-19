@@ -47,7 +47,7 @@ struct roots {
 void set_size_bit(size_t * const x) {
   *x |= ((size_t)1);
 }
-*/
+
 
 void set_ptr_bit(struct block ** x) {
   *x = (struct block *)((size_t)(*x) | ((size_t)1));
@@ -56,6 +56,7 @@ void set_ptr_bit(struct block ** x) {
 int get_size_bit(size_t const x) {
   return x & ((size_t)1);
 }
+*/
 
 int get_ptr_bit(struct block * x) {
   return ((size_t)x & ((size_t)1));
@@ -107,9 +108,11 @@ struct block * get_ptr(struct block * x) {
   return (struct block *)((size_t)(x) & (~((size_t)1)));
 }
 
+/*
 void mark_free(struct block * const b) {
   set_ptr_bit(&b->left);
 }
+*/
 
 int check_free(struct block * const b) {
   return get_ptr_bit(b->left);
@@ -119,9 +122,11 @@ void mark_used(struct block * const b) {
   unset_ptr_bit(&b->left);
 }
 
+/*
 int check_end(struct block * const b) {
   return 1 - get_size_bit(b->size);
 }
+*/
 
 void mark_end(struct block * const b) {
   unset_size_bit(&b->size);
@@ -358,7 +363,7 @@ void place(struct block * const b, struct roots * const r) {
   get_place(b->size, &head, &tail);
   set_mask_bit(&r->coarse, head);
   set_mask_bit(&r->fine[head], tail); 
-  mark_free(b);
+  block_set_freedom(b, 1);
   b->payload[0] = NULL;
   b->payload[1] = r->top[head][tail];
   if (r->top[head][tail]) {
@@ -400,7 +405,8 @@ struct roots * init_tlsf(const size_t bsize) {
   first->left = NULL;
   first->size = size;
   first->payload[0] = NULL;
-  mark_free(first);
+  first->payload[1] = NULL;
+  block_set_freedom(first, 1);
   mark_end(first);
   place(first, ans);
   return ans;
@@ -439,7 +445,7 @@ void remove_from_list(struct roots * const r, struct block * const b) {
 
 void tlsf_free(struct roots * const r, void * const p) {
   struct block * b = ((struct block *)p) - 1;
-  mark_free(b);
+  block_set_freedom(b, 1);
   struct block * const left = get_ptr(b->left);
   struct block * const right = p + block_get_size(b)/word_bytes;
   if ((NULL != left) && check_free(left)) {
