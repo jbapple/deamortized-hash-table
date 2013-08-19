@@ -67,10 +67,14 @@ void unset_size_bit(size_t * const x) {
 }
 */
 
+
+/*
 void unset_ptr_bit(struct block ** x) {
   *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
 }
+*/
 
+// TODO: make_block function
 int block_get_end(const struct block * const x) {
   return x->size & ((size_t)1);
 }
@@ -123,9 +127,11 @@ int check_free(struct block * const b) {
 }
 */
 
+/*
 void mark_used(struct block * const b) {
   unset_ptr_bit(&b->left);
 }
+*/
 
 /*
 int check_end(struct block * const b) {
