@@ -67,12 +67,8 @@ void unset_ptr_bit(struct block ** x) {
   *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
 }
 
-size_t get_size(size_t const x) {
-  return (x & ~((size_t)1));
-}
-
-size_t get_block_size(const struct block * const x) {
-  return get_size(x->size);
+size_t block_get_size(const struct block * const x) {
+  return (x->size & ~((size_t)1));
 }
 
 void set_block_size(struct block * const x, const size_t n) {
@@ -398,7 +394,7 @@ double links in free lists make sense
 void remove_from_list(struct roots * const r, struct block * const b) {
   if (NULL == b->payload[0]) {
     size_t x = word_bits, y = word_bits;
-    get_place(get_block_size(b), &x, &y);
+    get_place(block_get_size(b), &x, &y);
     r->top[x][y] = b->payload[1];
     if (r->top[x][y]) {
       r->top[x][y]->payload[0] = NULL;
@@ -417,14 +413,14 @@ void tlsf_free(struct roots * const r, void * const p) {
   struct block * b = ((struct block *)p) - 1;
   mark_free(b);
   struct block * const left = get_ptr(b->left);
-  struct block * const right = p + get_block_size(b)/word_bytes;
+  struct block * const right = p + block_get_size(b)/word_bytes;
   if ((NULL != left) && check_free(left)) {
     remove_from_list(r, b);
-    set_block_size(left, get_block_size(left) + get_block_size(b) + 2 * word_bytes);
+    set_block_size(left, block_get_size(left) + block_get_size(b) + 2 * word_bytes);
     b = left;
   }
   if ((NULL != right) && check_free(right)) {
-    set_block_size(b, get_block_size(b) + get_block_size(right) + 2 * word_bytes);
+    set_block_size(b, block_get_size(b) + block_get_size(right) + 2 * word_bytes);
     remove_from_list(r, right);
   }
   place(b, r);
@@ -440,8 +436,8 @@ void test_roots_sizes(const struct roots * const r) {
       size_t begin = 0, end = 0;
       place_range(i, j, &begin, &end);
       while (NULL != here) {
-        assert (get_size(here->size) >= begin);
-        assert (get_size(here->size) <= end);
+        assert (block_get_size(here) >= begin);
+        assert (block_get_size(here) <= end);
         here = here->payload[0];
       }
     }
