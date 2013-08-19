@@ -43,36 +43,6 @@ struct roots {
   struct block * top[big_buckets][word_bits];
 };
 
-/*
-void set_size_bit(size_t * const x) {
-  *x |= ((size_t)1);
-}
-
-
-void set_ptr_bit(struct block ** x) {
-  *x = (struct block *)((size_t)(*x) | ((size_t)1));
-}
-
-int get_size_bit(size_t const x) {
-  return x & ((size_t)1);
-}
-
-int get_ptr_bit(struct block * x) {
-  return ((size_t)x & ((size_t)1));
-}
-
-
-void unset_size_bit(size_t * const x) {
-  *x &= ~((size_t)1);
-}
-*/
-
-
-/*
-void unset_ptr_bit(struct block ** x) {
-  *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
-}
-*/
 
 // TODO: make_block function
 int block_get_end(const struct block * const x) {
@@ -101,6 +71,7 @@ int block_get_freedom(struct block * const x) {
   return ((size_t)(x) & ((size_t)1));
 }
 
+/*
 void ptr_set_lastbit(struct block ** x, const int f) {
   if (f) {
     *x = (struct block *)((size_t)(*x) | ((size_t)1));
@@ -108,15 +79,25 @@ void ptr_set_lastbit(struct block ** x, const int f) {
     *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
   }
 }
-
-void block_set_freedom(struct block * const x, const int f) {
-  ptr_set_lastbit(&x->left, f);
+*/
+void block_set_freedom(struct block * const y, const int f) {
+  struct block * z = y->left;
+  if (f) {
+    z = (struct block *)((size_t)(z) | ((size_t)1));
+  } else {
+    z = (struct block *)((size_t)(z) & (~((size_t)1)));
+  }
 }
 
+struct block * block_get_left(struct block * const x) {
+  return (struct block *)(((size_t)x) & (~((size_t)1)));
+}
+  
+/*
 struct block * get_ptr(struct block * x) {
   return (struct block *)((size_t)(x) & (~((size_t)1)));
 }
-
+*/
 /*
 void mark_free(struct block * const b) {
   set_ptr_bit(&b->left);
@@ -457,7 +438,7 @@ void remove_from_list(struct roots * const r, struct block * const b) {
 void tlsf_free(struct roots * const r, void * const p) {
   struct block * b = ((struct block *)p) - 1;
   block_set_freedom(b, 1);
-  struct block * const left = get_ptr(b->left);
+  struct block * const left = block_get_left(b);
   struct block * const right = p + block_get_size(b)/word_bytes;
   if ((NULL != left) && block_get_freedom(left)) {
     remove_from_list(r, b);
