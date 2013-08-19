@@ -293,9 +293,13 @@ void place(struct block * const b, struct roots * const r) {
   size_t head, tail;
   get_place(b->size, &head, &tail);
   set_mask_bit(&r->coarse, head);
-  set_mask_bit(&r->fine[head], tail);
-  b->payload[0] = r->top[head][tail];
+  set_mask_bit(&r->fine[head], tail); 
   mark_free(b);
+  b->payload[0] = NULL;
+  b->payload[1] = r->top[head][tail];
+  if (r->top[head][tail]) {
+    r->top[head][tail]->payload[0] = b;
+  }   
   r->top[head][tail] = b;
 }
 
@@ -350,16 +354,44 @@ stored blocks sum up to the expected size
 double links in free lists make sense
 */
   
-/*
-void tlsf_free(struct roots * const r, void * const p) {
-  struct block * const b = ((char *)p) - 2 * word_bytes;
-  mark_free(b);
-  struct block * const left = get_ptr(b->left);
-  if ((NULL != left) && get_free(left)) {
-    set_block_size
+
+void remove_from_list(struct roots * const r, struct block * const b) {
+  if (NULL == b->payload[0]) {
+    size_t x = word_bits, y = word_bits;
+    get_place(get_block_size(b), &x, &y);
+    r->top[x][y] = b->payload[1];
+    if (r->top[x][y]) {
+      r->top[x][y]->payload[0] = NULL;
+    }
+  } else {
+    b->payload[0]->payload[0] = b->payload[1];
+    if (b->payload[1]) {
+      b->payload[1]->payload[0] = b->payload[0];
+    }
   }
 }
-*/
+
+/* TOCHECK: offsets and alignments */
+
+void tlsf_free(struct roots * const r, void * const p) {
+  struct block * b = ((struct block *)p) - 1;
+  mark_free(b);
+  struct block * const left = get_ptr(b->left);
+  struct block * const right = p + get_block_size(b)/word_bytes;
+  if ((NULL != left) && check_free(left)) {
+    remove_from_list(r, b);
+    set_block_size(left, get_block_size(left) + get_block_size(b) + 2 * word_bytes);
+    b = left;
+  }
+  if ((NULL != right) && check_free(right)) {
+    set_block_size(b, get_block_size(b) + get_block_size(right) + 2 * word_bytes);
+    remove_from_list(r, right);
+  }
+  place(b, r);
+}
+
+
+
 
 void test_roots_sizes(const struct roots * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
