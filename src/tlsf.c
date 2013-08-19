@@ -27,7 +27,7 @@ struct block {
   /* The size in bytes, so, since size is always a word multiple, and
      we assume words are at least two bytes, the last bit is
      free. This bit is set if and only if the next block (in address
-     space) is owned by the same memory pool. */
+     space) is NOT owned by the same memory pool. */
   size_t size; 
   // first item is next in free list
   // need to doubly-link free list to remove items from it in case of coalescing
@@ -43,9 +43,11 @@ struct roots {
   struct block * top[big_buckets][word_bits];
 };
 
+/*
 void set_size_bit(size_t * const x) {
   *x |= ((size_t)1);
 }
+*/
 
 void set_ptr_bit(struct block ** x) {
   *x = (struct block *)((size_t)(*x) | ((size_t)1));
@@ -67,14 +69,38 @@ void unset_ptr_bit(struct block ** x) {
   *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
 }
 
+int block_get_end(const struct block * const x) {
+  return x->size & ((size_t)1);
+}
+
+void block_set_end(struct block * const x, int b) {
+  if (b) {
+    x->size |= (size_t)1;
+  } else {
+    x->size &= ~((size_t)1);
+  }
+}
+
 size_t block_get_size(const struct block * const x) {
   return (x->size & ~((size_t)1));
 }
 
-void set_block_size(struct block * const x, const size_t n) {
-  const int was_set = get_size_bit(x->size);
+void block_set_size(struct block * const x, const size_t n) {
+  const int old_end = block_get_end(x);
   x->size = n;
-  if (was_set) set_size_bit(&x->size);
+  block_set_end(x, old_end);
+}
+
+void ptr_set_lastbit(struct block ** x, const int f) {
+  if (f) {
+    *x = (struct block *)((size_t)(*x) | ((size_t)1));
+  } else {
+    *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
+  }
+}
+
+void block_set_freedom(struct block * const x, const int f) {
+  ptr_set_lastbit(&x->left, f);
 }
 
 struct block * get_ptr(struct block * x) {
@@ -101,9 +127,11 @@ void mark_end(struct block * const b) {
   unset_size_bit(&b->size);
 }
 
+/*
 void mark_not_end(struct block * const b) {
   set_size_bit(&b->size);
 }
+*/
 
 void set_mask_bit(size_t * const x, const size_t i) {
   *x |= ((size_t)1) << i;
@@ -129,13 +157,13 @@ void * pop_bigger(struct roots * r, const size_t n) {
     here = y + sizeof(long long)*8 - __builtin_clzll(r->find[place]);
   }
   struct block * b = r->top[place][place];
-  mark_used(b);
+  block_set_freedom(b, 0);
   remove_from_list(r, b);
-  if (size >= get_size(b) + 2*word_bytes + sizeof(struct block)) {
+  if (size >= block_get_size(b) + 2*word_bytes + sizeof(struct block)) {
     struct block * const next = b->payload + size/word_bytes;
     next->left = b;
     next->size = block_get_size(b) - size - sizeof(struct block);
-    mark_free(next);
+    block_set_freedom(next,1);
     if (check_end(b)) { mark_end(next); }
     block_set_size(b, size/word_bytes);
     mark_not_end(b);
@@ -416,11 +444,11 @@ void tlsf_free(struct roots * const r, void * const p) {
   struct block * const right = p + block_get_size(b)/word_bytes;
   if ((NULL != left) && check_free(left)) {
     remove_from_list(r, b);
-    set_block_size(left, block_get_size(left) + block_get_size(b) + 2 * word_bytes);
+    block_set_size(left, block_get_size(left) + block_get_size(b) + sizeof(struct block));
     b = left;
   }
   if ((NULL != right) && check_free(right)) {
-    set_block_size(b, block_get_size(b) + block_get_size(right) + 2 * word_bytes);
+    block_set_size(b, block_get_size(b) + block_get_size(right) + sizeof(struct block));
     remove_from_list(r, right);
   }
   place(b, r);
