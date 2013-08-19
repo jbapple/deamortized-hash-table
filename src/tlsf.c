@@ -56,11 +56,11 @@ void set_ptr_bit(struct block ** x) {
 int get_size_bit(size_t const x) {
   return x & ((size_t)1);
 }
-*/
 
 int get_ptr_bit(struct block * x) {
   return ((size_t)x & ((size_t)1));
 }
+*/
 
 void unset_size_bit(size_t * const x) {
   *x &= ~((size_t)1);
@@ -92,6 +92,10 @@ void block_set_size(struct block * const x, const size_t n) {
   block_set_end(x, old_end);
 }
 
+int block_get_freedom(struct block * const x) {
+  return ((size_t)(x) & ((size_t)1));
+}
+
 void ptr_set_lastbit(struct block ** x, const int f) {
   if (f) {
     *x = (struct block *)((size_t)(*x) | ((size_t)1));
@@ -112,11 +116,11 @@ struct block * get_ptr(struct block * x) {
 void mark_free(struct block * const b) {
   set_ptr_bit(&b->left);
 }
-*/
 
 int check_free(struct block * const b) {
   return get_ptr_bit(b->left);
 }
+*/
 
 void mark_used(struct block * const b) {
   unset_ptr_bit(&b->left);
@@ -448,12 +452,12 @@ void tlsf_free(struct roots * const r, void * const p) {
   block_set_freedom(b, 1);
   struct block * const left = get_ptr(b->left);
   struct block * const right = p + block_get_size(b)/word_bytes;
-  if ((NULL != left) && check_free(left)) {
+  if ((NULL != left) && block_get_freedom(left)) {
     remove_from_list(r, b);
     block_set_size(left, block_get_size(left) + block_get_size(b) + sizeof(struct block));
     b = left;
   }
-  if ((NULL != right) && check_free(right)) {
+  if ((NULL != right) && block_get_freedom(right)) {
     block_set_size(b, block_get_size(b) + block_get_size(right) + sizeof(struct block));
     remove_from_list(r, right);
   }
