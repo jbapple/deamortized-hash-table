@@ -86,6 +86,10 @@ void block_set_freedom(struct block * const y, const int f) {
 struct block * block_get_left(struct block * const x) {
   return (struct block *)(((size_t)x) & (~((size_t)1)));
 }
+
+struct block * block_get_right(struct block * const x) {
+  return (struct block *)((char *)(x->payload) + block_get_size(x));
+}
   
 void block_set_left(struct block * const x, struct block * const y) {
   const int freedom = block_get_freedom(x);
@@ -399,6 +403,7 @@ void test_place() {
   test_place_range_contiguous();
 }
 
+
 // TODO: set mask bits where appropriate
 void place(struct block * const b, struct roots * const r) {
   size_t head, tail;
@@ -490,17 +495,18 @@ void tlsf_free(struct roots * const r, void * const p) {
   struct block * b = ((struct block *)p) - 1;
   block_set_freedom(b, 1);
   struct block * const left = block_get_left(b);
-  struct block * const right = p + block_get_size(b)/word_bytes;
+  struct block * const right = block_get_right(b);
   if ((NULL != left) && block_get_freedom(left)) {
-    remove_from_list(r, b);
-    block_set_size(left, block_get_size(left) + block_get_size(b) + sizeof(struct block));
+    roots_detach_block(r, left);
+    coalesce_detached_blocks(left, b);
     b = left;
   }
   if ((NULL != right) && block_get_freedom(right)) {
-    block_set_size(b, block_get_size(b) + block_get_size(right) + sizeof(struct block));
-    remove_from_list(r, right);
+    roots_detach_block(r, right);
+    coalesce_detached_blocks(b, right);
   }
-  place(b, r);
+  roots_add_block(r, b);
+  //place(b, r);
 }
 
 
