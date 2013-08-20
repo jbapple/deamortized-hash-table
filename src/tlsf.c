@@ -12,6 +12,7 @@
 
 #include <stddef.h>
 #include <assert.h>
+#include <stdint.h>
 
 #define word_bytes sizeof(size_t)
 #define word_bits (word_bytes * 8)
@@ -73,15 +74,6 @@ int block_get_freedom(struct block * const x) {
   return ((size_t)(x) & ((size_t)1));
 }
 
-/*
-void ptr_set_lastbit(struct block ** x, const int f) {
-  if (f) {
-    *x = (struct block *)((size_t)(*x) | ((size_t)1));
-  } else {
-    *x = (struct block *)((size_t)(*x) & (~((size_t)1)));
-  }
-}
-*/
 void block_set_freedom(struct block * const y, const int f) {
   struct block * z = y->left;
   if (f) {
@@ -95,44 +87,40 @@ struct block * block_get_left(struct block * const x) {
   return (struct block *)(((size_t)x) & (~((size_t)1)));
 }
   
-/*
-struct block * get_ptr(struct block * x) {
-  return (struct block *)((size_t)(x) & (~((size_t)1)));
-}
-*/
-/*
-void mark_free(struct block * const b) {
-  set_ptr_bit(&b->left);
+void block_set_left(struct block * const x, struct block * const y) {
+  const int freedom = block_get_freedom(x);
+  x->left = y;
+  block_set_freedom(x, freedom);
 }
 
-int check_free(struct block * const b) {
-  return get_ptr_bit(b->left);
-}
-*/
+struct location {
+  uint8_t root, leaf;
+};
 
-/*
-void mark_used(struct block * const b) {
-  unset_ptr_bit(&b->left);
-}
-*/
+struct location size_get_location(const size_t bytes) {
+  struct location ans = {0,0};
+  /* incorrect: might overflow */
+  /* const size_t words = (bytes + sizeof(size_t) - 1)/sizeof(size_t); */
+  const size_t dwords = bytes/(word_bytes) + ((bytes & (word_bytes - 1)) > 0);
 
-/*
-int check_end(struct block * const b) {
-  return 1 - get_size_bit(b->size);
-}
-*/
-/*
-void mark_end(struct block * const b) {
-  unset_size_bit(&b->size);
-}
-*/
-/*
-void mark_not_end(struct block * const b) {
-  set_size_bit(&b->size);
-}
-*/
+  if (dwords <= 2) {
+    return ans;
+  }
 
-// TODO: make this "coarse set" and operate on block
+  // floor log_2
+  const int lg = sizeof(long long)*8 - __builtin_clzll(dwords+word_bits-2) - 1;
+  //printf("words: %d, lg floor: %d\n", words, lg);
+  if (lg <= (int)word_log) {
+    //ans.root = 0; // already
+    ans.leaf = dwords - 2;
+  } else {
+    ans.root = lg - word_log;
+    ans.leaf = (dwords + word_bits - 2 - (((size_t)1) << lg)) >> ans.root;
+  }
+  return ans;
+}
+
+// TODO: make this "coarse set" and operate on roots
 void mask_set_bit(size_t * const x, const size_t i, const int b) {
   if (b) {
     *x |= ((size_t)1) << i;
@@ -141,8 +129,66 @@ void mask_set_bit(size_t * const x, const size_t i, const int b) {
   }
 }
 
+int mask_get_bit(const size_t x, const size_t i) {
+  return (x >> i) & ((size_t)1);
+}
+
+// block must already be free
+void roots_set_freelist(struct roots * const r, struct location const l, struct block * const b) {
+  const struct block * const old = r->top[l.root][l.leaf];
+  if (old == b) return;
+  r->top[l.root][l.leaf] = b;
+  if (NULL == b) {
+    mask_set_bit(&r->fine[l.root], l.leaf, 0);
+    if (0 == r->fine[l.root]) {
+      mask_set_bit(&r->coarse, l.root, 0);
+    }
+  } else if (NULL == old) {
+    const size_t old_mask = r->fine[l.root];
+    mask_set_bit(&r->fine[l.root], l.leaf, 1);
+    if (0 == old_mask) {
+      mask_set_bit(&r->coarse, l.root, 1);
+    }
+  }
+}
+
+struct block * roots_get_freelist(struct roots * const r, struct location const l) {
+  return r->top[l.root][l.leaf];
+}
+
+void roots_detach_block(struct roots * const r, struct block * const b) {
+  if (b->payload[0]) {
+    b->payload[0]->payload[1] = b->payload[1];
+    if (b->payload[1]) {
+      b->payload[1]->payload[0] = b->payload[0];
+    }
+  } else {
+    struct location l = size_get_location(block_get_size(b));
+    roots_set_freelist(r, l, b->payload[1]);
+    if (b->payload[1]) {
+      b->payload[1]->payload[0] = NULL;
+    }
+  }
+}
+
+void roots_add_block(struct roots * const r, struct block * const b) {
+  struct location l = size_get_location(block_get_size(b));
+  b->payload[0] = NULL;
+  b->payload[1] = roots_get_freelist(r, l);
+  if (b->payload[1]) {
+    b->payload[1]->payload[0] = b;
+  }
+  roots_set_freelist(r, l, b);
+}  
+
+void coalesce_detached_blocks(struct block * const x, struct block * const y) {
+  block_set_size(x, block_get_size(x) + sizeof(struct block) + block_get_size(y));
+}
+
+
 
 /*
+// TODO: unset vacated lists
 void * pop_bigger(struct roots * r, const size_t n) {
   const size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
   size_t x = word_bits, y = word_bits;
@@ -176,16 +222,13 @@ void * pop_bigger(struct roots * r, const size_t n) {
 }
 */
 
-int get_mask_bit(const size_t x, const size_t i) {
-  return (x >> i) & ((size_t)1);
-}
 
 void test_roots_setbits(const struct roots * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
-    if (get_mask_bit(r->coarse, i)) {
+    if (mask_get_bit(r->coarse, i)) {
       assert (r->fine[i] > 0);
       for (size_t j = 0; j < word_bits; ++j) {
-        if (get_mask_bit(r->fine[i], j)) {
+        if (mask_get_bit(r->fine[i], j)) {
           assert (NULL != r->top[i][j]);
         } else {
           assert (NULL == r->top[i][j]);
@@ -356,7 +399,7 @@ void test_place() {
   test_place_range_contiguous();
 }
 
-
+// TODO: set mask bits where appropriate
 void place(struct block * const b, struct roots * const r) {
   size_t head, tail;
   get_place(block_get_size(b), &head, &tail);
@@ -442,6 +485,7 @@ void remove_from_list(struct roots * const r, struct block * const b) {
 
 /* TOCHECK: offsets and alignments */
 
+// TODO: unset masks of lists
 void tlsf_free(struct roots * const r, void * const p) {
   struct block * b = ((struct block *)p) - 1;
   block_set_freedom(b, 1);
