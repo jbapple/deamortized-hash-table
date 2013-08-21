@@ -249,9 +249,10 @@ void test_roots_setbits(const struct roots * const r) {
 
 #include <stdio.h>
 
+/*
 void get_place(const size_t bytes, size_t * const head, size_t * const tail) {
-  /* incorrect: might overflow */
-  /* const size_t words = (bytes + sizeof(size_t) - 1)/sizeof(size_t); */
+  // incorrect: might overflow 
+  // const size_t words = (bytes + sizeof(size_t) - 1)/sizeof(size_t); 
   const size_t dwords = bytes/(word_bytes) + ((bytes & (word_bytes - 1)) > 0);
 
   if (dwords <= 2) {
@@ -271,6 +272,7 @@ void get_place(const size_t bytes, size_t * const head, size_t * const tail) {
     *tail = (dwords + word_bits - 2 - (((size_t)1) << (word_log + (*head)))) >> (*head);
   } 
 }
+*/
 
 void place_range(const size_t head, const size_t tail, size_t * const min, size_t * const max) {
   if (0 == head) {
@@ -308,30 +310,28 @@ void test_max_alloc() {
 }
 
 void test_place_limited() {
-  size_t head = word_bits, tail = word_bits;
   const size_t t = rword();
   if (t > max_alloc) test_place_limited();
-  get_place(t, &head, &tail);
+  const struct location l = size_get_location(t);
   //printf("%#.16zx %zu %zu\n", t, head, tail);
-  assert (head < big_buckets);
-  assert (tail < word_bits);
+  assert (l.root < big_buckets);
+  assert (l.leaf < word_bits);
 }
 
 void test_get_place_monotonic() {
-  size_t u1 = big_buckets, u2 = word_bits, v1 = 0, v2 = 0;
   const size_t u = rword();
   const size_t v = u + 1;
   if ((u > max_alloc) || (v > max_alloc)) test_get_place_monotonic();
-  get_place(u, &u1, &u2);
-  get_place(v, &v1, &v2);
+  const struct location p = size_get_location(u);
+  const struct location q = size_get_location(v);
   //printf("%#zx\n", u);
-  assert (u1 <= v1);
-  if (u1 < v1) {
-    assert (0 == v2);
-    assert (word_bits - 1 == u2);
-    assert (u1 + 1 == v1);
+  assert (p.root <= q.root);
+  if (p.root < q.root) {
+    assert (0 == q.leaf);
+    assert (word_bits - 1 == p.leaf);
+    assert (p.root + 1 == q.root);
   } else {
-    assert ((u2 == v2) || (u2 + 1 == v2));
+    assert ((p.leaf == q.leaf) || (p.leaf + 1 == q.leaf));
   }
 }
 
@@ -356,21 +356,21 @@ void test_place_range_involution(const size_t many) {
       place_range(i, j, &min, &max);
       assert (max >= min);
       const size_t delta = max - min;
-      size_t head = word_bits, tail = word_bits;
+      struct location l;
       if (delta <= many) {
 	for (size_t k = min; (k <= max) && (k != 0); ++k) {
-	  get_place(k, &head, &tail);
+	  l = size_get_location(k);
 	  //printf("%zu %zu %zu %zu %zu %zu %zu\n",
 	  //i, j, min, max, k, head, tail);
-	  assert ((head == i) && (tail == j));
+	  assert ((l.root == i) && (l.leaf == j));
 	}
       } else {
 	for (size_t k = 0; k < many; ++k) {
 	  const size_t x = min + rword() % delta;
-	  get_place(x, &head, &tail);
+	  l = size_get_location(x);
 	  //printf("%zu %zu %zu %zu %zu %zu %zu\n",
 	  //i, j, min, max, x, head, tail);
-	  assert ((head == i) && (tail == j));
+	  assert ((l.root == i) && (l.leaf == j));
 	}
       }
     }
@@ -378,12 +378,11 @@ void test_place_range_involution(const size_t many) {
 }
 
 void test_place_maximum() {
-  size_t head = word_bits, tail = word_bits;
   const size_t t = max_alloc;
-  get_place(t, &head, &tail);
+  const struct location l = size_get_location(t);
   //printf("%#zx %zu %zu\n", t, head, tail);
-  assert (head == big_buckets - 1);
-  assert (tail == word_bits - 1);
+  assert (l.root == big_buckets - 1);
+  assert (l.leaf == word_bits - 1);
 }
 
 #include <time.h>
@@ -406,18 +405,18 @@ void test_place() {
 
 // TODO: set mask bits where appropriate
 void place(struct block * const b, struct roots * const r) {
-  size_t head, tail;
-  get_place(block_get_size(b), &head, &tail);
-  mask_set_bit(&r->coarse, head, 1);
-  mask_set_bit(&r->fine[head], tail, 1); 
+  const struct location l = size_get_location(block_get_size(b));
+  mask_set_bit(&r->coarse, l.root, 1);
+  mask_set_bit(&r->fine[l.root], l.leaf, 1); 
   block_set_freedom(b, 1);
   b->payload[0] = NULL;
-  b->payload[1] = r->top[head][tail];
-  if (r->top[head][tail]) {
-    r->top[head][tail]->payload[0] = b;
+  b->payload[1] = r->top[l.root][l.leaf];
+  if (r->top[l.root][l.leaf]) {
+    r->top[l.root][l.leaf]->payload[0] = b;
   }   
-  r->top[head][tail] = b;
+  r->top[l.root][l.leaf] = b;
 }
+
 
 
 /*
@@ -471,7 +470,7 @@ stored blocks sum up to the expected size
 double links in free lists make sense
 */
   
-
+/*
 void remove_from_list(struct roots * const r, struct block * const b) {
   if (NULL == b->payload[0]) {
     size_t x = word_bits, y = word_bits;
@@ -487,6 +486,7 @@ void remove_from_list(struct roots * const r, struct block * const b) {
     }
   }
 }
+*/
 
 /* TOCHECK: offsets and alignments */
 
