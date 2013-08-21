@@ -189,28 +189,79 @@ void coalesce_detached_blocks(struct block * const x, struct block * const y) {
   block_set_size(x, block_get_size(x) + sizeof(struct block) + block_get_size(y));
 }
 
+// return l.root >= big_buckets if nothing available
+struct location roots_find_fitting(const struct roots * const r, const size_t n) {
+  struct location ans = { big_buckets, 0 };
+  size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
+  if (size < 2*word_bytes) size = 2*word_bytes;
+  const struct location l = size_get_location(size);
+  unsigned long long coarse_shift = r->coarse >> l.root;
+  if (0 == coarse_shift) { return ans; }
+  ans.root = l.root + __builtin_ffsll(coarse_shift) - 1;
+  const unsigned long long fine_shift = r->fine[ans.root] >> l.leaf;
+  if (0 != fine_shift) {
+    ans.leaf = l.leaf + __builtin_ffsll(fine_shift) - 1;
+  } else {
+    coarse_shift = r->coarse >> (l.root+1);
+    if (0 == coarse_shift) { ans.root = big_buckets; return ans; }
+    ans.root = l.root + __builtin_ffsll(coarse_shift) - 1;
+    ans.leaf = l.leaf + __builtin_ffsll(r->fine[ans.root]) - 1;
+  }
+  return ans;
+}
+
+struct block * block_split_detached(struct block * const b, const size_t n) {
+  size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
+  if (size < 2*word_bytes) size = 2*word_bytes;
+  if (block_get_size(b) <= size + sizeof(struct block) + 2*word_bytes) {
+    return NULL;
+  }
+
+  struct block * const next = (struct block *)(&b->payload[size/word_bytes]);
+  next->left = b;
+  next->size = block_get_size(b) - size - sizeof(struct block);
+  block_set_freedom(next, 1);
+  block_set_end(next, block_get_end(b));
+  block_set_size(b, size);
+  block_set_end(b, 0);
+  next->payload[0] = NULL;
+  next->payload[1] = NULL;
+  return next;
+}
+
+void * tlsf_malloc(struct roots * const r, const size_t n) {
+  const struct location l = roots_find_fitting(r, n);
+  if (l.root >= big_buckets) return NULL;
+  struct block * const b = roots_get_freelist(r, l);
+  roots_detach_block(r, b);
+  struct block * const c = block_split_detached(b, n);
+  if (NULL != c) {
+    roots_add_block(r, c);
+  }
+  block_set_freedom(b, 0);
+  return b->payload;
+}
 
 
 /*
 // TODO: unset vacated lists
 void * pop_bigger(struct roots * r, const size_t n) {
   const size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
-  size_t x = word_bits, y = word_bits;
-  get_place(size, x, y);
-  unsigned long long shift_x = r->coarse << x;
-  if (0 == shift_x) { return NULL; }
-  int place = x + sizeof(long long)*8 - __builtin_clzll(shift_x);
-  const unsigned long long shift_y = r->find[place] << y;
+  const struct location l = size_get_location(size);
+  unsigned long long coarse_shift = r->coarse >> x;
+  if (0 == coarse_shift) { return NULL; }
+  int place = x + __builtin_ffsll(shift_x) - 1;
+  const unsigned long long fine_shift = r->find[place] >> y;
   int here = word_bits;
-  if (0 != shift_y) {
-    here = y + sizeof(long long)*8 - __builtin_clzll(shift_y);
+  if (0 != fine_shift) {
+    here = y + __builtin_ffsll(shift_y) - 1;
   } else {
-    shift_x = r->coarse << (x+1);
-    if (0 == shift_x) { return NULL; }
+    coarse_shift = r->coarse >> (x+1);
+    if (0 == coarse_shift) { return NULL; }
     place = x + sizeof(long long)*8 - __builtin_clzll(shift_x);
     here = y + sizeof(long long)*8 - __builtin_clzll(r->find[place]);
   }
-  struct block * b = r->top[place][place];
+  struct block * b = r->top[place][here];
   block_set_freedom(b, 0);
   remove_from_list(r, b);
   if (size >= block_get_size(b) + 2*word_bytes + sizeof(struct block)) {
@@ -225,7 +276,6 @@ void * pop_bigger(struct roots * r, const size_t n) {
   return b->payload;  
 }
 */
-
 
 void test_roots_setbits(const struct roots * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
@@ -449,23 +499,6 @@ stored blocks sum up to the expected size
 double links in free lists make sense
 */
   
-/*
-void remove_from_list(struct roots * const r, struct block * const b) {
-  if (NULL == b->payload[0]) {
-    size_t x = word_bits, y = word_bits;
-    get_place(block_get_size(b), &x, &y);
-    r->top[x][y] = b->payload[1];
-    if (r->top[x][y]) {
-      r->top[x][y]->payload[0] = NULL;
-    }
-  } else {
-    b->payload[0]->payload[0] = b->payload[1];
-    if (b->payload[1]) {
-      b->payload[1]->payload[0] = b->payload[0];
-    }
-  }
-}
-*/
 
 /* TOCHECK: offsets and alignments */
 
@@ -517,6 +550,7 @@ void test_roots() {
           foo = init_tlsf(many);
           many >>= 1;
         }
+        tlsf_malloc(foo, many/8);
         break;
       }
       test_roots_setbits(foo);
