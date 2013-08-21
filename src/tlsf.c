@@ -16,9 +16,10 @@
 
 #define word_bytes sizeof(size_t)
 #define word_bits (word_bytes * 8)
-// TODO: void * is same size
+// TODO: test void * is same size
+// TODO: mock out actual void * and size_t types
 #define word_log (3 + (18*word_bytes - word_bytes*word_bytes - 8)/24)
-// TODO: only works on 32 and 64 bit
+
 
 struct block {
   /* Left is the address of the free block to the left. We steal the
@@ -38,14 +39,13 @@ struct block {
 #define big_buckets (word_bits - 2*word_log + 3)
 
 struct roots {
-  //void * end; // why do we need this?
   // TODO: better names than coarse and fine?
   size_t coarse;
   size_t fine[big_buckets];
   struct block * top[big_buckets][word_bits];
 };
 
-// TODO: make more implementation hiding, without osing performance of inline
+// TODO: make more implementation hiding, without losing performance of inline
 
 // TODO: make_block function
 int block_get_end(const struct block * const x) {
@@ -75,11 +75,11 @@ int block_get_freedom(struct block * const x) {
 }
 
 void block_set_freedom(struct block * const y, const int f) {
-  struct block * z = y->left;
+  struct block ** z = &y->left;
   if (f) {
-    z = (struct block *)((size_t)(z) | ((size_t)1));
+    *z = (struct block *)((size_t)(*z) | ((size_t)1));
   } else {
-    z = (struct block *)((size_t)(z) & (~((size_t)1)));
+    *z = (struct block *)((size_t)(*z) & (~((size_t)1)));
   }
 }
 
@@ -249,30 +249,6 @@ void test_roots_setbits(const struct roots * const r) {
 
 #include <stdio.h>
 
-/*
-void get_place(const size_t bytes, size_t * const head, size_t * const tail) {
-  // incorrect: might overflow 
-  // const size_t words = (bytes + sizeof(size_t) - 1)/sizeof(size_t); 
-  const size_t dwords = bytes/(word_bytes) + ((bytes & (word_bytes - 1)) > 0);
-
-  if (dwords <= 2) {
-    *head = 0;
-    *tail = 0;
-    return;
-  }
-
-  // floor log_2
-  const int lg = sizeof(long long)*8 - __builtin_clzll(dwords+word_bits-2) - 1;
-  //printf("words: %d, lg floor: %d\n", words, lg);
-  if (lg <= (int)word_log) {
-    *head = 0;
-    *tail = dwords - 2;
-  } else {
-    *head = lg - word_log;
-    *tail = (dwords + word_bits - 2 - (((size_t)1) << (word_log + (*head)))) >> (*head);
-  } 
-}
-*/
 
 void place_range(const size_t head, const size_t tail, size_t * const min, size_t * const max) {
   if (0 == head) {
@@ -403,6 +379,7 @@ void test_place() {
 }
 
 
+/*
 // TODO: set mask bits where appropriate
 void place(struct block * const b, struct roots * const r) {
   const struct location l = size_get_location(block_get_size(b));
@@ -416,7 +393,7 @@ void place(struct block * const b, struct roots * const r) {
   }   
   r->top[l.root][l.leaf] = b;
 }
-
+*/
 
 
 /*
@@ -431,7 +408,8 @@ struct block * const displace(struct roots * const r, const size_t head, const s
 */
 
 struct roots * init_tlsf(const size_t bsize) {
-  const size_t size = 2*word_bytes * (bsize/(2*word_bytes) + ((bsize & ((2*word_bytes) - 1)) > 0));
+  size_t size = word_bytes * (bsize/word_bytes + ((bsize & (word_bytes - 1)) > 0));
+  if (size < 2*word_bytes) size = 2*word_bytes;
   const size_t get = size + sizeof(struct roots) + sizeof(struct block);
   void * whole = malloc(get);
   if (NULL == whole) return NULL;
@@ -454,7 +432,8 @@ struct roots * init_tlsf(const size_t bsize) {
   first->payload[1] = NULL;
   block_set_freedom(first, 1);
   block_set_end(first, 1);
-  place(first, ans);
+  roots_add_block(ans, first);
+  //place(first, ans);
   return ans;
 }
 
