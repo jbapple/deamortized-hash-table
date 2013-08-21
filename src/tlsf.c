@@ -212,15 +212,15 @@ struct location roots_find_fitting(const struct roots * const r, const size_t n)
   unsigned long long coarse_shift = r->coarse >> l.root;
   if (0 == coarse_shift) { return dummy; }
   ans.root = l.root + __builtin_ffsll(coarse_shift) - 1;
-  // TODO: well, ans.root can be larger, so we may not need to shift fine at all!
-  const unsigned long long fine_shift = r->fine[ans.root] >> l.leaf;
+  const size_t mod_fine = (ans.root == l.root) ? l.leaf : 0;
+  const unsigned long long fine_shift = r->fine[ans.root] >> mod_fine;
   if (0 != fine_shift) {
-    ans.leaf = l.leaf + __builtin_ffsll(fine_shift) - 1;
+    ans.leaf = mod_fine + __builtin_ffsll(fine_shift) - 1;
   } else {
     coarse_shift = r->coarse >> (l.root+1);
     if (0 == coarse_shift) { return dummy; }
-    ans.root = l.root + __builtin_ffsll(coarse_shift) - 1;
-    ans.leaf = l.leaf + __builtin_ffsll(r->fine[ans.root]) - 1;
+    ans.root = l.root + 1 + __builtin_ffsll(coarse_shift) - 1;
+    ans.leaf = __builtin_ffsll(r->fine[ans.root]) - 1;
   }
   return ans;
 }
