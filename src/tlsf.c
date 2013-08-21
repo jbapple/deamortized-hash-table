@@ -191,19 +191,34 @@ void coalesce_detached_blocks(struct block * const x, struct block * const y) {
 
 // return l.root >= big_buckets if nothing available
 struct location roots_find_fitting(const struct roots * const r, const size_t n) {
+  static const struct location dummy = {big_buckets, 0};
   struct location ans = { big_buckets, 0 };
   size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
-  if (size < 2*word_bytes) size = 2*word_bytes;
-  const struct location l = size_get_location(size);
+  struct location l = {0, 0};
+  if (size < 3*word_bytes) {
+    size = 2*word_bytes;
+  } else {
+    l = size_get_location(size);
+    const struct location m = size_get_location(size - word_bytes);
+    if (m.leaf == l.leaf) {
+      ++l.leaf;
+      if (l.leaf == word_bits) {
+        l.leaf = 0;
+        ++l.root;
+        if (l.root == big_buckets) return dummy;
+      }
+    }
+  }
   unsigned long long coarse_shift = r->coarse >> l.root;
-  if (0 == coarse_shift) { return ans; }
+  if (0 == coarse_shift) { return dummy; }
   ans.root = l.root + __builtin_ffsll(coarse_shift) - 1;
+  // TODO: well, ans.root can be larger, so we may not need to shift fine at all!
   const unsigned long long fine_shift = r->fine[ans.root] >> l.leaf;
   if (0 != fine_shift) {
     ans.leaf = l.leaf + __builtin_ffsll(fine_shift) - 1;
   } else {
     coarse_shift = r->coarse >> (l.root+1);
-    if (0 == coarse_shift) { ans.root = big_buckets; return ans; }
+    if (0 == coarse_shift) { return dummy; }
     ans.root = l.root + __builtin_ffsll(coarse_shift) - 1;
     ans.leaf = l.leaf + __builtin_ffsll(r->fine[ans.root]) - 1;
   }
@@ -550,7 +565,11 @@ void test_roots() {
           foo = init_tlsf(many);
           many >>= 1;
         }
-        tlsf_malloc(foo, many/8);
+        void * bar = tlsf_malloc(foo, many/8);
+        assert (NULL != bar);
+        test_roots_setbits(foo);
+        test_roots_sizes(foo);
+        tlsf_free(foo, bar);
         break;
       }
       test_roots_setbits(foo);
