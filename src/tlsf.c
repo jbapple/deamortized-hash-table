@@ -13,13 +13,15 @@
 #include <stddef.h>
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 #define word_bytes sizeof(size_t)
 #define word_bits (word_bytes * 8)
 // TODO: test void * is same size
 // TODO: mock out actual void * and size_t types
 #define word_log (3 + (18*word_bytes - word_bytes*word_bytes - 8)/24)
-
 
 struct block {
   /* Left is the address of the free block to the left. We steal the
@@ -257,41 +259,6 @@ void * tlsf_malloc(struct roots * const r, const size_t n) {
   return b->payload;
 }
 
-
-/*
-// TODO: unset vacated lists
-void * pop_bigger(struct roots * r, const size_t n) {
-  const size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
-  const struct location l = size_get_location(size);
-  unsigned long long coarse_shift = r->coarse >> x;
-  if (0 == coarse_shift) { return NULL; }
-  int place = x + __builtin_ffsll(shift_x) - 1;
-  const unsigned long long fine_shift = r->find[place] >> y;
-  int here = word_bits;
-  if (0 != fine_shift) {
-    here = y + __builtin_ffsll(shift_y) - 1;
-  } else {
-    coarse_shift = r->coarse >> (x+1);
-    if (0 == coarse_shift) { return NULL; }
-    place = x + sizeof(long long)*8 - __builtin_clzll(shift_x);
-    here = y + sizeof(long long)*8 - __builtin_clzll(r->find[place]);
-  }
-  struct block * b = r->top[place][here];
-  block_set_freedom(b, 0);
-  remove_from_list(r, b);
-  if (size >= block_get_size(b) + 2*word_bytes + sizeof(struct block)) {
-    struct block * const next = b->payload + size/word_bytes;
-    next->left = b;
-    next->size = block_get_size(b) - size - sizeof(struct block);
-    block_set_freedom(next,1);
-    if (check_end(b)) { mark_end(next); }
-    block_set_size(b, size/word_bytes);
-    mark_not_end(b);
-  }
-  return b->payload;  
-}
-*/
-
 void test_roots_setbits(const struct roots * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
     if (mask_get_bit(r->coarse, i)) {
@@ -310,9 +277,7 @@ void test_roots_setbits(const struct roots * const r) {
 }
 
 
-//#define MAX(x,y) ((x) > (y)) ? (x) : (y);
 
-#include <stdio.h>
 
 
 void place_range(const size_t head, const size_t tail, size_t * const min, size_t * const max) {
@@ -324,7 +289,7 @@ void place_range(const size_t head, const size_t tail, size_t * const min, size_
   *min = word_bytes * ((((((size_t)1) << head) - 1) << word_log) + (((size_t)1) << head) * tail + 2);
   *max = *min + ((((size_t)1) << head) - 1) * word_bytes;
 }
-#include <stdlib.h>
+
 
 size_t rword() {
   size_t ans = 0;
@@ -334,9 +299,6 @@ size_t rword() {
   }
   return ans;
 }
-
-#include <assert.h>
-#include <stdio.h>
 
 const size_t max_alloc = word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1);
 
@@ -426,9 +388,6 @@ void test_place_maximum() {
   assert (l.leaf == word_bits - 1);
 }
 
-#include <time.h>
-#include <stdio.h>
-
 void test_place() {
   const time_t seed = time(NULL);
   printf("test_place seed is %ld.\n", seed);
@@ -442,35 +401,6 @@ void test_place() {
   test_place_maximum();
   test_place_range_contiguous();
 }
-
-
-/*
-// TODO: set mask bits where appropriate
-void place(struct block * const b, struct roots * const r) {
-  const struct location l = size_get_location(block_get_size(b));
-  mask_set_bit(&r->coarse, l.root, 1);
-  mask_set_bit(&r->fine[l.root], l.leaf, 1); 
-  block_set_freedom(b, 1);
-  b->payload[0] = NULL;
-  b->payload[1] = r->top[l.root][l.leaf];
-  if (r->top[l.root][l.leaf]) {
-    r->top[l.root][l.leaf]->payload[0] = b;
-  }   
-  r->top[l.root][l.leaf] = b;
-}
-*/
-
-
-/*
-void tlsf_free(void * const p) {
-   
-}
-
-struct block * const displace(struct roots * const r, const size_t head, const size_t tail) {
-  struct block * ans = r->top[head][tail];
-  r->top[head][tail] = ans->prev;
-}
-*/
 
 struct roots * init_tlsf(const size_t bsize) {
   size_t size = word_bytes * (bsize/word_bytes + ((bsize & (word_bytes - 1)) > 0));
@@ -514,10 +444,8 @@ stored blocks sum up to the expected size
 double links in free lists make sense
 */
   
-
 /* TOCHECK: offsets and alignments */
 
-// TODO: unset masks of lists
 void tlsf_free(struct roots * const r, void * const p) {
   struct block * b = ((struct block *)p) - 1;
   block_set_freedom(b, 1);
@@ -533,7 +461,6 @@ void tlsf_free(struct roots * const r, void * const p) {
     coalesce_detached_blocks(b, right);
   }
   roots_add_block(r, b);
-  //place(b, r);
 }
 
 
@@ -588,13 +515,3 @@ int main() {
   test_place();
   test_roots();
 }
-
-/*
-{
-  printf("%u\n", word_bits);
-  printf("%u\n", sizeof(long long));
-  printf("%u\n", sizeof(long));
-  printf("%u\n", sizeof(size_t));
-}
-  
-*/
