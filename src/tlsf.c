@@ -19,9 +19,13 @@
 
 #define word_bytes sizeof(size_t)
 #define word_bits (word_bytes * 8)
-// TODO: test void * is same size
 // TODO: mock out actual void * and size_t types
 #define word_log (3 + (18*word_bytes - word_bytes*word_bytes - 8)/24)
+
+void test_word_sizes() {
+  assert (sizeof(void *) == sizeof(size_t));
+  assert ((((size_t)1) << word_log) == word_bits);
+}
 
 struct block {
   /* Left is the address of the free block to the left. We steal the
@@ -34,7 +38,6 @@ struct block {
      space) is NOT owned by the same memory pool. */
   size_t size; 
   // first item is next in free list
-  // need to doubly-link free list to remove items from it in case of coalescing
   struct block * payload[]; // TODO: alignment
 };
 
@@ -47,7 +50,6 @@ struct roots {
   struct block * top[big_buckets][word_bits];
 };
 
-// TODO: make more implementation hiding, without losing performance of inline
 
 // TODO: make_block function
 int block_get_end(const struct block * const x) {
@@ -72,7 +74,7 @@ void block_set_size(struct block * const x, const size_t n) {
   block_set_end(x, old_end);
 }
 
-int block_get_freedom(struct block * const x) {
+int block_get_freedom(const struct block * const x) {
   return ((size_t)(x) & ((size_t)1));
 }
 
@@ -86,10 +88,11 @@ void block_set_freedom(struct block * const y, const int f) {
 }
 
 struct block * block_get_left(struct block * const x) {
-  return (struct block *)(((size_t)x) & (~((size_t)1)));
+  return (struct block *)(((size_t)x->left) & (~((size_t)1)));
 }
 
 struct block * block_get_right(struct block * const x) {
+  if (block_get_end(x)) return NULL;
   return (struct block *)((char *)(x->payload) + block_get_size(x));
 }
   
@@ -97,6 +100,25 @@ void block_set_left(struct block * const x, struct block * const y) {
   const int freedom = block_get_freedom(x);
   x->left = y;
   block_set_freedom(x, freedom);
+}
+
+// returns 0 if we don't know.
+size_t roots_contiguous_managed_size(const struct roots * const r) {
+  if (0 == r->coarse) return 0;
+  const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
+  const size_t leaf = __builtin_ffsll((unsigned long long)r->fine[root]) - 1;
+  struct block * b = r->top[root][leaf];
+  size_t ans = 0;
+  struct block * c = block_get_right(b);
+  while (NULL != b) {
+    ans += block_get_size(b) + sizeof(struct block);
+    b = block_get_left(b);
+  }
+  while (NULL != c) {
+    ans += block_get_size(c) + sizeof(struct block);
+    c = block_get_right(c);
+  }
+  return ans;
 }
 
 struct location {
@@ -492,11 +514,14 @@ void test_roots() {
           foo = init_tlsf(many);
           many >>= 1;
         }
+        const size_t total = roots_contiguous_managed_size(foo);
         void * bar = tlsf_malloc(foo, many/8);
+        assert (roots_contiguous_managed_size(foo) == total);
         assert (NULL != bar);
         test_roots_setbits(foo);
         test_roots_sizes(foo);
         tlsf_free(foo, bar);
+        assert (roots_contiguous_managed_size(foo) == total);
         break;
       }
       test_roots_setbits(foo);
@@ -511,7 +536,7 @@ void test_roots() {
 }
 
 int main() {
-  printf("%zu\n", sizeof(struct block));
+  test_word_sizes();
   test_place();
   test_roots();
 }
