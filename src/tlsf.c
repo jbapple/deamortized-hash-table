@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 
 #define word_bytes sizeof(size_t)
 #define word_bits (word_bytes * 8)
@@ -425,6 +426,7 @@ void test_place() {
 }
 
 struct roots * init_tlsf(const size_t bsize) {
+  if (bsize > max_alloc) return NULL;
   size_t size = word_bytes * (bsize/word_bytes + ((bsize & (word_bytes - 1)) > 0));
   if (size < 2*word_bytes) size = 2*word_bytes;
   const size_t get = size + sizeof(struct roots) + sizeof(struct block);
@@ -503,36 +505,58 @@ void test_roots_sizes(const struct roots * const r) {
   }
 }
 
+void test_roots_valid(const struct roots * const x) {
+  test_roots_setbits(x);
+  test_roots_sizes(x);
+}
+
 void test_roots() {
-  for (size_t i = 0; i < big_buckets; ++i) {
-    for (size_t j = 0; j < word_bits; ++j) {
-      struct roots * foo = NULL;
-      while (1) {
-        size_t many = rword();
-        if (many > max_alloc) continue;
-        while (NULL == foo) {
-          foo = init_tlsf(many);
-          many >>= 1;
-        }
-        const size_t total = roots_contiguous_managed_size(foo);
-        void * bar = tlsf_malloc(foo, many/8);
-        assert (roots_contiguous_managed_size(foo) == total);
-        assert (NULL != bar);
-        test_roots_setbits(foo);
-        test_roots_sizes(foo);
-        tlsf_free(foo, bar);
-        assert (roots_contiguous_managed_size(foo) == total);
-        break;
-      }
-      test_roots_setbits(foo);
-      test_roots_sizes(foo);
-      free(foo);
-    }
+  {
+    struct roots * const foo = init_tlsf(1);
+    test_roots_setbits(foo);
+    test_roots_sizes(foo);
+    free(foo);  
   }
-  struct roots * const foo = init_tlsf(1);
-  test_roots_setbits(foo);
-  test_roots_sizes(foo);
-  free(foo);  
+  for (size_t i = 0; i < big_buckets * word_bits; ++i) {
+    struct roots * r = NULL;
+    size_t many = rword();
+    while (NULL == r) {
+      many >>= 1;
+      r = init_tlsf(many);
+    }
+    free(r);
+    many = 1000 * sqrt(many);
+    r = init_tlsf(many);
+    printf("many: %zu\n", many);
+    const size_t total = roots_contiguous_managed_size(r);
+    size_t used = 0;
+    const size_t most = sqrt(many);
+    struct block ** tracked = tlsf_malloc(r, most * sizeof(struct block *));
+    for (size_t i = 0; i < most; ++i) {
+      tracked[i] = NULL;
+    }
+    assert (roots_contiguous_managed_size(r) == total);
+    size_t top = 0;
+    for (size_t i = 0; i < most; ++i) {
+      size_t n = exp(rword() % (size_t)log(most));
+      tracked[top++] = tlsf_malloc(r, n);
+      assert (roots_contiguous_managed_size(r) == total);
+      test_roots_valid(r);
+      if (NULL == tracked[top-1]) {
+        tlsf_free(r,tracked[top-1]);
+        assert (roots_contiguous_managed_size(r) == total);
+        test_roots_valid(r);
+        if (top > 0) --top;
+      }
+    }
+    while (top > 0) {
+      tlsf_free(r, tracked[--top]);
+      assert (roots_contiguous_managed_size(r) == total);
+      test_roots_valid(r);
+    }
+    // TODO: test all is free, here
+    free(r);
+  }    
 }
 
 int main() {
