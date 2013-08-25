@@ -76,7 +76,7 @@ void block_set_size(struct block * const x, const size_t n) {
 }
 
 int block_get_freedom(const struct block * const x) {
-  return ((size_t)(x) & ((size_t)1));
+  return ((size_t)(x->left) & ((size_t)1));
 }
 
 void block_set_freedom(struct block * const y, const int f) {
@@ -86,6 +86,7 @@ void block_set_freedom(struct block * const y, const int f) {
   } else {
     *z = (struct block *)((size_t)(*z) & (~((size_t)1)));
   }
+  assert (f == block_get_freedom(y));
 }
 
 struct block * block_get_left(struct block * const x) {
@@ -109,14 +110,23 @@ size_t roots_contiguous_managed_size(const struct roots * const r) {
   const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
   const size_t leaf = __builtin_ffsll((unsigned long long)r->fine[root]) - 1;
   struct block * b = r->top[root][leaf];
+  int any = 1;
   size_t ans = 0;
   struct block * c = block_get_right(b);
+  assert ((NULL == c) || (b == block_get_left(c)));
   while (NULL != b) {
     ans += block_get_size(b) + sizeof(struct block);
+    assert (any | (0 == block_get_freedom(b)));
+    if (1 == block_get_freedom(b)) any = 0;
+    assert ((NULL == block_get_left(b)) || (b == block_get_right(block_get_left(b))));
     b = block_get_left(b);
   }
+  any = 0;
   while (NULL != c) {
     ans += block_get_size(c) + sizeof(struct block);
+    assert (any | (0 == block_get_freedom(c)));
+    if (1 == block_get_freedom(c)) any = 0;
+    assert ((NULL == block_get_right(c)) || (c == block_get_left(block_get_right(c))));
     c = block_get_right(c);
   }
   return ans;
@@ -192,7 +202,7 @@ void roots_detach_block(struct roots * const r, struct block * const b) {
       b->payload[1]->payload[0] = b->payload[0];
     }
   } else {
-    struct location l = size_get_location(block_get_size(b));
+    const struct location l = size_get_location(block_get_size(b));
     roots_set_freelist(r, l, b->payload[1]);
     if (b->payload[1]) {
       b->payload[1]->payload[0] = NULL;
@@ -212,6 +222,8 @@ void roots_add_block(struct roots * const r, struct block * const b) {
 
 void coalesce_detached_blocks(struct block * const x, struct block * const y) {
   block_set_size(x, block_get_size(x) + sizeof(struct block) + block_get_size(y));
+  block_set_end(x, block_get_end(y));
+  assert(block_get_size(x) > 0);
 }
 
 // return l.root >= big_buckets if nothing available
@@ -260,12 +272,14 @@ struct block * block_split_detached(struct block * const b, const size_t n) {
   struct block * const next = (struct block *)(&b->payload[size/word_bytes]);
   next->left = b;
   next->size = block_get_size(b) - size - sizeof(struct block);
+  assert (next->size > 0);
   block_set_freedom(next, 1);
   block_set_end(next, block_get_end(b));
   block_set_size(b, size);
   block_set_end(b, 0);
   next->payload[0] = NULL;
   next->payload[1] = NULL;
+  assert (block_get_size(next) > 0);
   return next;
 }
 
@@ -517,7 +531,7 @@ void test_roots() {
     test_roots_sizes(foo);
     free(foo);  
   }
-  for (size_t i = 0; i < big_buckets * word_bits; ++i) {
+  for (size_t i = 0; i < 10000; ++i) {
     struct roots * r = NULL;
     size_t many = rword();
     while (NULL == r) {
@@ -525,7 +539,7 @@ void test_roots() {
       r = init_tlsf(many);
     }
     free(r);
-    many = 1000 * sqrt(many);
+    many = sqrt(many);
     r = init_tlsf(many);
     printf("many: %zu\n", many);
     const size_t total = roots_contiguous_managed_size(r);
@@ -540,9 +554,15 @@ void test_roots() {
     for (size_t i = 0; i < most; ++i) {
       size_t n = exp(rword() % (size_t)log(most));
       tracked[top++] = tlsf_malloc(r, n);
+      if (NULL != tracked[top-1]) {
+        used += n;
+      }
       assert (roots_contiguous_managed_size(r) == total);
       test_roots_valid(r);
       if (NULL == tracked[top-1]) {
+        // TODO: track how big when malloc fails
+        printf("used %zu %zu\n", used, used + n);
+        used -= block_get_size((struct block *)(tracked[top-1]) - 1);
         tlsf_free(r,tracked[top-1]);
         assert (roots_contiguous_managed_size(r) == total);
         test_roots_valid(r);
