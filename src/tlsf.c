@@ -508,12 +508,14 @@ void test_roots_sizes(const struct roots * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
     for (size_t j = 0; j < word_bits; ++j) {
       struct block * here = r->top[i][j];
+      assert ((NULL == here) || (NULL == here->payload[0]));
       size_t begin = 0, end = 0;
       place_range(i, j, &begin, &end);
       while (NULL != here) {
         assert (block_get_size(here) >= begin);
         assert (block_get_size(here) <= end);
-        here = here->payload[0];
+        assert ((NULL == here->payload[0]) || (here == here->payload[0]->payload[1]));
+        here = here->payload[1];
       }
     }
   }
