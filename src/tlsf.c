@@ -374,13 +374,10 @@ size_t rword() {
 const size_t max_alloc = word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1);
 
 void test_max_alloc() {
-  /*
-  const size_t ones = max_alloc - 2;
-  const size_t top = max_alloc - 
+  static const size_t top = max_alloc + word_bits * word_bytes - word_bytes - 1;
   for (size_t i = 0; i < word_bytes; ++i) {
-    assert (0xff == ((const unsigned char *)&max)[i]);
+    assert (0xff == ((const unsigned char *)&top)[i]);
   }
-  */
 }
 
 void test_place_limited() {
