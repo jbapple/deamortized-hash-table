@@ -6,7 +6,9 @@ using namespace std;
 #include <sys/mman.h>
 
 #include "util.hh"
-
+extern "C" {
+#include "tlsf.h"
+}
 
 void bench_calloc(const size_t n) {
   void * foo = calloc(n,1);
@@ -19,6 +21,26 @@ void bench_malloc(const size_t n) {
   static size_t last = 0;
   free(all[last]);
   all[last] = malloc(n);
+  last = (last+1) & (many-1);
+  /*
+  static const size_t many = 64;
+  void* all[many];
+  for (size_t i = 0; i < many; ++i) {
+    all[i] = malloc(n);
+  }
+  for (size_t i = 0; i < many; ++i) {
+    free(all[i]);
+  }
+  */
+}
+
+void bench_tlsf(const size_t n) {
+  static roots * const r = init_tlsf(1ull << 30);
+  static const size_t many = 4;
+  static void* all[many];
+  static size_t last = 0;
+  tlsf_free(r, all[last]);
+  all[last] = tlsf_malloc(r, n);
   last = (last+1) & (many-1);
   /*
   static const size_t many = 64;
@@ -70,7 +92,7 @@ void bench_new(const size_t n) {
 }
 
 int main() {
-  auto bar = median_time<bench_malloc>(10000000, 1000, 10000*2*1000);
+  auto bar = median_time<bench_tlsf>(10000000, 1000, 10000*2*1000);
   for (auto foo : bar) {
     cout << foo.first << '\t' << foo.second[0] << endl;
   }

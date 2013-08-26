@@ -151,7 +151,7 @@ size_t roots_contiguous_managed_size(const struct roots * const r) {
   while (NULL != b) {
     ans += block_get_size(b) + sizeof(struct block);
     assert (any | (0 == block_get_freedom(b)));
-    if (1 == block_get_freedom(b)) any = 0;
+    any = 1 - block_get_freedom(b);
     assert ((NULL == block_get_left(b)) || (b == block_get_right(block_get_left(b))));
     b = block_get_left(b);
   }
@@ -159,7 +159,7 @@ size_t roots_contiguous_managed_size(const struct roots * const r) {
   while (NULL != c) {
     ans += block_get_size(c) + sizeof(struct block);
     assert (any | (0 == block_get_freedom(c)));
-    if (1 == block_get_freedom(c)) any = 0;
+    any = 1 - block_get_freedom(c);
     assert ((NULL == block_get_right(c)) || (c == block_get_left(block_get_right(c))));
     c = block_get_right(c);
   }
@@ -255,9 +255,12 @@ void roots_add_block(struct roots * const r, struct block * const b) {
 }  
 
 void coalesce_detached_blocks(struct block * const x, struct block * const y) {
+  struct block * const z = block_get_right(y);
+  if (NULL != z) block_set_left(z, x);
   block_set_size(x, block_get_size(x) + sizeof(struct block) + block_get_size(y));
   block_set_end(x, block_get_end(y));
-  assert(block_get_size(x) > 0);
+  assert (block_get_right(x) == z);
+  assert (block_get_size(x) > 0);
 }
 
 // return l.root >= big_buckets if nothing available
@@ -298,12 +301,16 @@ struct location roots_find_fitting(const struct roots * const r, const size_t n)
 
 struct block * block_split_detached(struct block * const b, const size_t n) {
   size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
+  assert (size >= n);
   if (size < 2*word_bytes) size = 2*word_bytes;
   if (block_get_size(b) <= size + sizeof(struct block) + 2*word_bytes) {
     return NULL;
   }
 
   struct block * const next = (struct block *)(&b->payload[size/word_bytes]);
+  assert (next == (struct block *)((char *)(b->payload) + size));
+  struct block * const c = block_get_right(b);
+  if (NULL != c) block_set_left(c, next);
   next->left = b;
   next->size = block_get_size(b) - size - sizeof(struct block);
   assert (next->size > 0);
@@ -317,16 +324,22 @@ struct block * block_split_detached(struct block * const b, const size_t n) {
   return next;
 }
 
+void test_roots_valid(const struct roots * const);
+
 void * tlsf_malloc(struct roots * const r, const size_t n) {
+  test_roots_valid(r);
   const struct location l = roots_find_fitting(r, n);
   if (l.root >= big_buckets) return NULL;
   struct block * const b = roots_get_freelist(r, l);
   roots_detach_block(r, b);
+  test_roots_valid(r);
   struct block * const c = block_split_detached(b, n);
+  block_set_freedom(b, 0);
+  test_roots_valid(r);
   if (NULL != c) {
     roots_add_block(r, c);
+    test_roots_valid(r);
   }
-  block_set_freedom(b, 0);
   return b->payload;
 }
 
@@ -516,6 +529,8 @@ double links in free lists make sense
 /* TOCHECK: offsets and alignments */
 
 void tlsf_free(struct roots * const r, void * const p) {
+  test_roots_valid(r);
+  if (NULL == p) return;
   struct block * b = ((struct block *)p) - 1;
   block_set_freedom(b, 1);
   struct block * const left = block_get_left(b);
@@ -530,6 +545,7 @@ void tlsf_free(struct roots * const r, void * const p) {
     coalesce_detached_blocks(b, right);
   }
   roots_add_block(r, b);
+  test_roots_valid(r);
 }
 
 
@@ -555,6 +571,7 @@ void test_roots_sizes(const struct roots * const r) {
 void test_roots_valid(const struct roots * const x) {
   test_roots_setbits(x);
   test_roots_sizes(x);
+  roots_contiguous_managed_size(x);
 }
 
 void test_roots() {
@@ -627,8 +644,10 @@ void test_roots() {
   }    
 }
 
+/*
 int main() {
   test_word_sizes();
   test_place();
   test_roots();
 }
+*/
