@@ -225,6 +225,13 @@ void roots_set_freelist(struct roots * const r, struct location const l, struct 
   }
 }
 
+void block_garbage_fill(struct block * const b) {
+  const size_t start = block_get_freedom(b) * 2;
+  for (size_t i = start; i < block_get_size(b)/word_bytes; ++i) {
+    b->payload[i] = (struct block *)0xabad1deadeadbeef;
+  }
+}
+
 struct block * roots_get_freelist(struct roots * const r, struct location const l) {
   return r->top[l.root][l.leaf];
 }
@@ -324,24 +331,32 @@ struct block * block_split_detached(struct block * const b, const size_t n) {
   return next;
 }
 
-void test_roots_valid(const struct roots * const);
+void test_roots_valid(const struct roots * const, const struct block * const);
 
 void * tlsf_malloc(struct roots * const r, const size_t n) {
-  test_roots_valid(r);
+  test_roots_valid(r, NULL);
   const struct location l = roots_find_fitting(r, n);
   if (l.root >= big_buckets) return NULL;
   struct block * const b = roots_get_freelist(r, l);
   roots_detach_block(r, b);
-  test_roots_valid(r);
+  test_roots_valid(r, b);
   struct block * const c = block_split_detached(b, n);
   block_set_freedom(b, 0);
-  test_roots_valid(r);
+  test_roots_valid(r, b);
   if (NULL != c) {
     roots_add_block(r, c);
-    test_roots_valid(r);
+    test_roots_valid(r, c);
+    test_roots_valid(r, b);
   }
+  assert (block_get_size(b) >= n);
+  for (size_t i = 0; i < block_get_size(b); ++i) {
+    ((char *)b->payload)[i] = 0xff;
+  }
+  test_roots_valid(r, b);
   return b->payload;
 }
+
+// TODO: realloc, calloc
 
 void test_roots_setbits(const struct roots * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
@@ -384,7 +399,7 @@ size_t rword() {
   return ans;
 }
 
-const size_t max_alloc = word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1);
+#define max_alloc (word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1))
 
 void test_max_alloc() {
   static const size_t top = max_alloc + word_bits * word_bytes - word_bytes - 1;
@@ -483,12 +498,8 @@ void test_place() {
   test_place_range_contiguous();
 }
 
-struct roots * init_tlsf(const size_t bsize) {
-  if (bsize > max_alloc) return NULL;
-  size_t size = word_bytes * (bsize/word_bytes + ((bsize & (word_bytes - 1)) > 0));
-  if (size < 2*word_bytes) size = 2*word_bytes;
-  const size_t get = size + sizeof(struct roots) + sizeof(struct block);
-  void * whole = malloc(get);
+
+struct roots * init_tlsf_from_block(void * whole, const size_t get) {
   if (NULL == whole) return NULL;
   struct roots * ans = whole;
   whole += sizeof(struct roots);
@@ -504,7 +515,7 @@ struct roots * init_tlsf(const size_t bsize) {
     }
   }
   first->left = NULL;
-  first->size = size;
+  first->size = get - sizeof(struct roots) - sizeof(struct block);
   first->payload[0] = NULL;
   first->payload[1] = NULL;
   block_set_freedom(first, 1);
@@ -514,7 +525,15 @@ struct roots * init_tlsf(const size_t bsize) {
   return ans;
 }
 
-#include <stdio.h>
+struct roots * init_tlsf_from_malloc(const size_t bsize) {
+  if (bsize > max_alloc) return NULL;
+  size_t size = word_bytes * (bsize/word_bytes + ((bsize & (word_bytes - 1)) > 0));
+  if (size < 2*word_bytes) size = 2*word_bytes;
+  const size_t get = size + sizeof(struct roots) + sizeof(struct block);
+  void * whole = malloc(get);
+  return init_tlsf_from_block(whole, get);
+}
+
 
 /*
 
@@ -529,7 +548,7 @@ double links in free lists make sense
 /* TOCHECK: offsets and alignments */
 
 void tlsf_free(struct roots * const r, void * const p) {
-  test_roots_valid(r);
+  test_roots_valid(r, NULL);
   if (NULL == p) return;
   struct block * b = ((struct block *)p) - 1;
   block_set_freedom(b, 1);
@@ -544,14 +563,27 @@ void tlsf_free(struct roots * const r, void * const p) {
     roots_detach_block(r, right);
     coalesce_detached_blocks(b, right);
   }
+  test_roots_valid(r, b);
+  block_garbage_fill(b);
+  test_roots_valid(r, b);
+
   roots_add_block(r, b);
-  test_roots_valid(r);
+  test_roots_valid(r, b);
 }
 
+void test_block_alias(const struct block * const a, const struct block * const b) {
+  if ((NULL == a) || (NULL == b)) return;
+  if (a == b) return;
+  if ((size_t)a < (size_t)b) {
+    assert ((size_t)(a + sizeof(struct block) + word_bytes * block_get_size(a))
+            < (size_t)(b + sizeof(struct block) + word_bytes * block_get_size(b)));
+  } else {
+    assert ((size_t)(a + sizeof(struct block) + word_bytes * block_get_size(a))
+            > (size_t)(b + sizeof(struct block) + word_bytes * block_get_size(b)));
+  }
+}
 
-
-
-void test_roots_sizes(const struct roots * const r) {
+void test_roots_sizes(const struct roots * const r, const struct block * const b) {
   for (size_t i = 0; i < big_buckets; ++i) {
     for (size_t j = 0; j < word_bits; ++j) {
       struct block * here = r->top[i][j];
@@ -562,23 +594,24 @@ void test_roots_sizes(const struct roots * const r) {
         assert (block_get_size(here) >= begin);
         assert (block_get_size(here) <= end);
         assert ((NULL == here->payload[0]) || (here == here->payload[0]->payload[1]));
+        test_block_alias(here, b);
         here = here->payload[1];
       }
     }
   }
 }
 
-void test_roots_valid(const struct roots * const x) {
+void test_roots_valid(const struct roots * const x, const struct block * const b) {
   test_roots_setbits(x);
-  test_roots_sizes(x);
+  test_roots_sizes(x, b);
   roots_contiguous_managed_size(x);
 }
 
 void test_roots() {
   {
-    struct roots * const foo = init_tlsf(1);
+    struct roots * const foo = init_tlsf_from_malloc(1);
     test_roots_setbits(foo);
-    test_roots_sizes(foo);
+    test_roots_sizes(foo, NULL);
     free(foo);  
   }
   for (size_t i = 0; i < 10000; ++i) {
@@ -586,11 +619,11 @@ void test_roots() {
     size_t many = rword();
     while (NULL == r) {
       many >>= 1;
-      r = init_tlsf(many);
+      r = init_tlsf_from_malloc(many);
     }
     free(r);
     many = sqrt(many);
-    r = init_tlsf(many);
+    r = init_tlsf_from_malloc(many);
     printf("many: %zu\n", many);
     const size_t total = roots_contiguous_managed_size(r);
     size_t used = 0;
@@ -609,7 +642,7 @@ void test_roots() {
       tracked[top++] = tlsf_malloc(r, n);
       const struct block_counts after_count = roots_block_counts(r);
       assert (roots_contiguous_managed_size(r) == total);
-      test_roots_valid(r);
+      test_roots_valid(r, NULL);
       if (NULL != tracked[top-1]) {
         used += n;
         assert (after_count.used_count == before_count.used_count + 1);
@@ -625,7 +658,7 @@ void test_roots() {
         assert (post_count.used_count + 1 == after_count.used_count);
         assert (post_count.free_count + 1 - after_count.free_count < 3);
         assert (roots_contiguous_managed_size(r) == total);
-        test_roots_valid(r);
+        test_roots_valid(r, NULL);
         if (top > 0) --top;
       }
     }
@@ -636,7 +669,7 @@ void test_roots() {
       assert (after_count.used_count + 1 == before_count.used_count);
       assert (after_count.free_count + 1 - before_count.free_count < 3);
       assert (roots_contiguous_managed_size(r) == total);
-      test_roots_valid(r);
+      test_roots_valid(r, NULL);
     }
     // TODO: block_couns integrated into free and malloc, proper, guarded by NDEBUG
     // TODO: test all is free, here
@@ -644,10 +677,10 @@ void test_roots() {
   }    
 }
 
-/*
+
 int main() {
   test_word_sizes();
   test_place();
   test_roots();
 }
-*/
+
