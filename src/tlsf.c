@@ -136,10 +136,22 @@ struct block_counts roots_block_counts(const struct roots * const r) {
   return ans;
 }
 
+void test_block_alias(const struct block * const a, const struct block * const b) {
+  if ((NULL == a) || (NULL == b)) return;
+  if (a == b) return;
+  if ((size_t)a < (size_t)b) {
+    assert ((size_t)(((char *)a) + sizeof(struct block) + block_get_size(a))
+            <= (size_t)(b));
+  } else {
+    assert ((size_t)(a) 
+            >= (size_t)(((char *)b) + sizeof(struct block) + block_get_size(b)));
+  }
+}
+
 
 // returns 0 if we don't know.
 // TODO: we don't actually check 0 return properly in test
-size_t roots_contiguous_managed_size(const struct roots * const r) {
+size_t roots_contiguous_managed_size(const struct roots * const r, const struct block * const d) {
   if (0 == r->coarse) return 0;
   const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
   const size_t leaf = __builtin_ffsll((unsigned long long)r->fine[root]) - 1;
@@ -153,6 +165,7 @@ size_t roots_contiguous_managed_size(const struct roots * const r) {
     assert (any | (0 == block_get_freedom(b)));
     any = 1 - block_get_freedom(b);
     assert ((NULL == block_get_left(b)) || (b == block_get_right(block_get_left(b))));
+    test_block_alias(b, d);
     b = block_get_left(b);
   }
   any = 0;
@@ -161,6 +174,7 @@ size_t roots_contiguous_managed_size(const struct roots * const r) {
     assert (any | (0 == block_get_freedom(c)));
     any = 1 - block_get_freedom(c);
     assert ((NULL == block_get_right(c)) || (c == block_get_left(block_get_right(c))));
+    test_block_alias(c, d);
     c = block_get_right(c);
   }
   return ans;
@@ -349,9 +363,10 @@ void * tlsf_malloc(struct roots * const r, const size_t n) {
     test_roots_valid(r, b);
   }
   assert (block_get_size(b) >= n);
-  for (size_t i = 0; i < block_get_size(b); ++i) {
-    ((char *)b->payload)[i] = 0xff;
-  }
+  block_garbage_fill(b);
+  //for (size_t i = 0; i < block_get_size(b); ++i) {
+  //  ((char *)b->payload)[i] = 0xff;
+  //}
   test_roots_valid(r, b);
   return b->payload;
 }
@@ -571,17 +586,6 @@ void tlsf_free(struct roots * const r, void * const p) {
   test_roots_valid(r, b);
 }
 
-void test_block_alias(const struct block * const a, const struct block * const b) {
-  if ((NULL == a) || (NULL == b)) return;
-  if (a == b) return;
-  if ((size_t)a < (size_t)b) {
-    assert ((size_t)(a + sizeof(struct block) + word_bytes * block_get_size(a))
-            < (size_t)(b + sizeof(struct block) + word_bytes * block_get_size(b)));
-  } else {
-    assert ((size_t)(a + sizeof(struct block) + word_bytes * block_get_size(a))
-            > (size_t)(b + sizeof(struct block) + word_bytes * block_get_size(b)));
-  }
-}
 
 void test_roots_sizes(const struct roots * const r, const struct block * const b) {
   for (size_t i = 0; i < big_buckets; ++i) {
@@ -604,7 +608,7 @@ void test_roots_sizes(const struct roots * const r, const struct block * const b
 void test_roots_valid(const struct roots * const x, const struct block * const b) {
   test_roots_setbits(x);
   test_roots_sizes(x, b);
-  roots_contiguous_managed_size(x);
+  roots_contiguous_managed_size(x, b);
 }
 
 void test_roots() {
@@ -625,7 +629,7 @@ void test_roots() {
     many = sqrt(many);
     r = init_tlsf_from_malloc(many);
     printf("many: %zu\n", many);
-    const size_t total = roots_contiguous_managed_size(r);
+    const size_t total = roots_contiguous_managed_size(r, NULL);
     size_t used = 0;
     const size_t most = sqrt(many);
     struct block ** tracked = tlsf_malloc(r, most * sizeof(struct block *));
@@ -634,14 +638,14 @@ void test_roots() {
     }
     assert (1 == roots_block_counts(r).used_count);
     assert (1 == roots_block_counts(r).free_count);
-    assert (roots_contiguous_managed_size(r) == total);
+    assert (roots_contiguous_managed_size(r, NULL) == total);
     size_t top = 0;
     for (size_t i = 0; i < most; ++i) {
       size_t n = exp(rword() % (size_t)log(most));
       const struct block_counts before_count = roots_block_counts(r);
       tracked[top++] = tlsf_malloc(r, n);
       const struct block_counts after_count = roots_block_counts(r);
-      assert (roots_contiguous_managed_size(r) == total);
+      assert (roots_contiguous_managed_size(r, ((struct block *)tracked[top-1] - 1)) == total);
       test_roots_valid(r, NULL);
       if (NULL != tracked[top-1]) {
         used += n;
@@ -657,7 +661,7 @@ void test_roots() {
         const struct block_counts post_count = roots_block_counts(r);
         assert (post_count.used_count + 1 == after_count.used_count);
         assert (post_count.free_count + 1 - after_count.free_count < 3);
-        assert (roots_contiguous_managed_size(r) == total);
+        assert (roots_contiguous_managed_size(r, NULL) == total);
         test_roots_valid(r, NULL);
         if (top > 0) --top;
       }
@@ -668,7 +672,7 @@ void test_roots() {
       const struct block_counts after_count = roots_block_counts(r);
       assert (after_count.used_count + 1 == before_count.used_count);
       assert (after_count.free_count + 1 - before_count.free_count < 3);
-      assert (roots_contiguous_managed_size(r) == total);
+      assert (roots_contiguous_managed_size(r, NULL) == total);
       test_roots_valid(r, NULL);
     }
     // TODO: block_couns integrated into free and malloc, proper, guarded by NDEBUG
