@@ -32,7 +32,7 @@ void *malloc(size_t size) {
       return tlsf_malloc(basic_pool, size);
     }
 
-    static const size_t heap_size = 1ull << 30;
+    static const size_t heap_size = 1ull << 31;
     ++begin;
     void * loc = mmap(NULL, heap_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
     --begin;
@@ -86,7 +86,7 @@ void free(void * x) {
 }
 
 void *calloc(size_t nmemb, size_t size) {
-  puts("calloc");
+  //puts("calloc");
   void * ans = malloc(nmemb * size);
   for (size_t i = 0; i < nmemb * size; ++i) {
     ((char *) ans)[i] = 0;
@@ -97,7 +97,7 @@ void *calloc(size_t nmemb, size_t size) {
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 void *realloc(void *ptr, size_t size) {
-  puts("realloc");
+  //puts("realloc");
   if (NULL == ptr) return malloc(size);
   if (0 == size) {
     free(ptr);

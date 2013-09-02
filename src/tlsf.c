@@ -18,6 +18,9 @@
 #include <time.h>
 #include <math.h>
 
+#undef assert
+#define assert(x) ((x) ? (void)0 : *(void *)0)
+
 #define word_bytes sizeof(size_t)
 #define word_bits (word_bytes * 8)
 // TODO: mock out actual void * and size_t types
@@ -27,6 +30,8 @@ void test_word_sizes() {
   assert (sizeof(void *) == sizeof(size_t));
   assert ((((size_t)1) << word_log) == word_bits);
 }
+
+
 
 struct block {
   /* Left is the address of the free block to the left. We steal the
@@ -46,6 +51,8 @@ struct block {
 
 struct roots {
   // TODO: better names than coarse and fine?
+  // TODO: lock for multi-threading
+  // TODO: make debug code go away when compiled with DNDEBUG
   size_t coarse;
   size_t fine[big_buckets];
   struct block * top[big_buckets][word_bits];
@@ -240,10 +247,12 @@ void roots_set_freelist(struct roots * const r, struct location const l, struct 
 }
 
 void block_garbage_fill(struct block * const b) {
+  /*
   const size_t start = block_get_freedom(b) * 2;
-  for (size_t i = start; i < block_get_size(b)/word_bytes; ++i) {
-    b->payload[i] = (struct block *)0xabad1deadeadbeef;
+  for (size_t i = start; i < block_get_size(b); ++i) {
+    ((char *)b->payload)[i] = 0xff;
   }
+  */
 }
 
 struct block * roots_get_freelist(struct roots * const r, struct location const l) {
@@ -263,6 +272,7 @@ void roots_detach_block(struct roots * const r, struct block * const b) {
       b->payload[1]->payload[0] = NULL;
     }
   }
+  b->payload[0] = b->payload[1] = (struct block *)0xabad1deadeadbeef;
 }
 
 void roots_add_block(struct roots * const r, struct block * const b) {
@@ -282,6 +292,7 @@ void coalesce_detached_blocks(struct block * const x, struct block * const y) {
   block_set_end(x, block_get_end(y));
   assert (block_get_right(x) == z);
   assert (block_get_size(x) > 0);
+  block_garbage_fill(x);
 }
 
 // return l.root >= big_buckets if nothing available
@@ -342,6 +353,8 @@ struct block * block_split_detached(struct block * const b, const size_t n) {
   next->payload[0] = NULL;
   next->payload[1] = NULL;
   assert (block_get_size(next) > 0);
+  block_garbage_fill(next);
+  block_garbage_fill(b);
   return next;
 }
 
@@ -367,6 +380,7 @@ void * tlsf_malloc(struct roots * const r, const size_t n) {
   //for (size_t i = 0; i < block_get_size(b); ++i) {
   //  ((char *)b->payload)[i] = 0xff;
   //}
+  assert(0 == block_get_freedom(b));
   test_roots_valid(r, b);
   return b->payload;
 }
@@ -566,9 +580,13 @@ void tlsf_free(struct roots * const r, void * const p) {
   test_roots_valid(r, NULL);
   if (NULL == p) return;
   struct block * b = ((struct block *)p) - 1;
-  block_set_freedom(b, 1);
+  block_garbage_fill(b);
+  test_roots_valid(r, b);
+
   struct block * const left = block_get_left(b);
   struct block * const right = block_get_right(b);
+  test_roots_valid(r, left);
+  test_roots_valid(r, right);
   if ((NULL != left) && block_get_freedom(left)) {
     roots_detach_block(r, left);
     coalesce_detached_blocks(left, b);
@@ -583,7 +601,11 @@ void tlsf_free(struct roots * const r, void * const p) {
   test_roots_valid(r, b);
 
   roots_add_block(r, b);
+  block_set_freedom(b, 1);
   test_roots_valid(r, b);
+  for (size_t i = 0; i < 2 * sizeof (struct block *); ++i) {
+    ((char *)(b->payload))[i] = 0;
+  }
 }
 
 
@@ -651,6 +673,9 @@ void test_roots() {
         used += n;
         assert (after_count.used_count == before_count.used_count + 1);
         assert (before_count.free_count - after_count.free_count < 2);
+        for (size_t j = 0; j < n; ++j) {
+          ((char *)tracked[top-1])[j] = 0xff;
+        }
       } else {
         assert (after_count.used_count == before_count.used_count);
         assert (after_count.free_count == before_count.free_count);
