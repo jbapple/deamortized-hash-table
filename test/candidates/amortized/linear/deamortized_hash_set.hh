@@ -220,7 +220,9 @@ template<typename Key,
 struct DeamortizedHashSet {
 
   DeamortizedHashSet() :
-    allocator(), far(allocator,0), near(allocator,32) {}
+    allocator(), far(allocator,0), near(allocator,32) {
+    near.init(1);
+  }
         
   Allocate allocator;
   LimitedHashSet<Key, Hash, Equal, Allocate> far, near;
@@ -298,10 +300,5 @@ struct DeamortizedHashSet {
   }
 };
 
-
-int main() {
-  DeamortizedHashSet<int> foo;
-  foo.insert(6);
-}
 
 #endif // LINEAR_HASH_SET

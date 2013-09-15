@@ -262,6 +262,7 @@ struct block * block_split_detached(struct block * const b, const size_t n) {
   return next;
 }
 
+// TODO: what is 0 bytes are requested?
 void * tlsf_malloc(struct roots * const r, const size_t n) {
   if (NULL == r) return NULL;
   const struct location l = roots_find_fitting(r, n);
