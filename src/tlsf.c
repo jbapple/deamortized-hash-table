@@ -18,20 +18,10 @@
 #include <time.h>
 #include <math.h>
 
-#undef assert
-#define assert(x) ((x) ? (void)0 : *(void *)0)
-
 #define word_bytes sizeof(size_t)
 #define word_bits (word_bytes * 8)
 // TODO: mock out actual void * and size_t types
 #define word_log (3 + (18*word_bytes - word_bytes*word_bytes - 8)/24)
-
-void test_word_sizes() {
-  assert (sizeof(void *) == sizeof(size_t));
-  assert ((((size_t)1) << word_log) == word_bits);
-}
-
-
 
 struct block {
   /* Left is the address of the free block to the left. We steal the
@@ -53,6 +43,9 @@ struct roots {
   // TODO: better names than coarse and fine?
   // TODO: lock for multi-threading
   // TODO: make debug code go away when compiled with DNDEBUG
+  // TODO: code for block initialization
+  // TODO: be able to add more memory later
+  // TODO: move left counter into previous free block
   size_t coarse;
   size_t fine[big_buckets];
   struct block * top[big_buckets][word_bits];
@@ -109,82 +102,6 @@ void block_set_left(struct block * const x, struct block * const y) {
   const int freedom = block_get_freedom(x);
   x->left = y;
   block_set_freedom(x, freedom);
-}
-
-struct block_counts {
-  size_t free_count, used_count;
-};
-
-// returns 0 if we don't know.
-struct block_counts roots_block_counts(const struct roots * const r) {
-  struct block_counts ans = {0,0};
-  if (0 == r->coarse) return (struct block_counts){0,~0};
-  const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
-  const size_t leaf = __builtin_ffsll((unsigned long long)r->fine[root]) - 1;
-  struct block * b = r->top[root][leaf];
-  struct block * c = block_get_right(b);
-  while (NULL != b) {
-    if (block_get_freedom(b)) {
-      ans.free_count++;
-    } else {
-      ans.used_count++;
-    }
-    b = block_get_left(b);
-  }
-  while (NULL != c) {
-    if (block_get_freedom(c)) {
-      ans.free_count++;
-    } else {
-      ans.used_count++;
-    }
-    c = block_get_left(c);
-  }
-  assert (ans.used_count + 1 >= ans.free_count);
-  return ans;
-}
-
-void test_block_alias(const struct block * const a, const struct block * const b) {
-  if ((NULL == a) || (NULL == b)) return;
-  if (a == b) return;
-  if ((size_t)a < (size_t)b) {
-    assert ((size_t)(((char *)a) + sizeof(struct block) + block_get_size(a))
-            <= (size_t)(b));
-  } else {
-    assert ((size_t)(a) 
-            >= (size_t)(((char *)b) + sizeof(struct block) + block_get_size(b)));
-  }
-}
-
-
-// returns 0 if we don't know.
-// TODO: we don't actually check 0 return properly in test
-size_t roots_contiguous_managed_size(const struct roots * const r, const struct block * const d) {
-  if (0 == r->coarse) return 0;
-  const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
-  const size_t leaf = __builtin_ffsll((unsigned long long)r->fine[root]) - 1;
-  struct block * b = r->top[root][leaf];
-  int any = 1;
-  size_t ans = 0;
-  struct block * c = block_get_right(b);
-  assert ((NULL == c) || (b == block_get_left(c)));
-  while (NULL != b) {
-    ans += block_get_size(b) + sizeof(struct block);
-    assert (any | (0 == block_get_freedom(b)));
-    any = 1 - block_get_freedom(b);
-    assert ((NULL == block_get_left(b)) || (b == block_get_right(block_get_left(b))));
-    test_block_alias(b, d);
-    b = block_get_left(b);
-  }
-  any = 0;
-  while (NULL != c) {
-    ans += block_get_size(c) + sizeof(struct block);
-    assert (any | (0 == block_get_freedom(c)));
-    any = 1 - block_get_freedom(c);
-    assert ((NULL == block_get_right(c)) || (c == block_get_left(block_get_right(c))));
-    test_block_alias(c, d);
-    c = block_get_right(c);
-  }
-  return ans;
 }
 
 struct location {
@@ -246,15 +163,6 @@ void roots_set_freelist(struct roots * const r, struct location const l, struct 
   }
 }
 
-void block_garbage_fill(struct block * const b) {
-  /*
-  const size_t start = block_get_freedom(b) * 2;
-  for (size_t i = start; i < block_get_size(b); ++i) {
-    ((char *)b->payload)[i] = 0xff;
-  }
-  */
-}
-
 struct block * roots_get_freelist(struct roots * const r, struct location const l) {
   return r->top[l.root][l.leaf];
 }
@@ -272,7 +180,6 @@ void roots_detach_block(struct roots * const r, struct block * const b) {
       b->payload[1]->payload[0] = NULL;
     }
   }
-  b->payload[0] = b->payload[1] = (struct block *)0xabad1deadeadbeef;
 }
 
 void roots_add_block(struct roots * const r, struct block * const b) {
@@ -292,7 +199,6 @@ void coalesce_detached_blocks(struct block * const x, struct block * const y) {
   block_set_end(x, block_get_end(y));
   assert (block_get_right(x) == z);
   assert (block_get_size(x) > 0);
-  block_garbage_fill(x);
 }
 
 // return l.root >= big_buckets if nothing available
@@ -353,39 +259,107 @@ struct block * block_split_detached(struct block * const b, const size_t n) {
   next->payload[0] = NULL;
   next->payload[1] = NULL;
   assert (block_get_size(next) > 0);
-  block_garbage_fill(next);
-  block_garbage_fill(b);
   return next;
 }
 
-void test_roots_valid(const struct roots * const, const struct block * const);
-
 void * tlsf_malloc(struct roots * const r, const size_t n) {
-  test_roots_valid(r, NULL);
+  if (NULL == r) return NULL;
   const struct location l = roots_find_fitting(r, n);
   if (l.root >= big_buckets) return NULL;
   struct block * const b = roots_get_freelist(r, l);
   roots_detach_block(r, b);
-  test_roots_valid(r, b);
   struct block * const c = block_split_detached(b, n);
   block_set_freedom(b, 0);
-  test_roots_valid(r, b);
   if (NULL != c) {
     roots_add_block(r, c);
-    test_roots_valid(r, c);
-    test_roots_valid(r, b);
   }
   assert (block_get_size(b) >= n);
-  block_garbage_fill(b);
-  //for (size_t i = 0; i < block_get_size(b); ++i) {
-  //  ((char *)b->payload)[i] = 0xff;
-  //}
   assert(0 == block_get_freedom(b));
-  test_roots_valid(r, b);
   return b->payload;
 }
 
 // TODO: realloc, calloc
+
+struct roots * init_tlsf_from_block(void * whole, const size_t get) {
+  if (NULL == whole) return NULL;
+  struct roots * ans = whole;
+  whole += sizeof(struct roots);
+  struct block * first = whole;
+  whole += sizeof(struct block);
+  ans->coarse = 0;
+  for (size_t i = 0; i < big_buckets; ++i) {
+    ans->fine[i] = 0;
+  }
+  for (size_t i = 0; i < big_buckets; ++i) {
+    for (size_t j = 0; j< word_bits; ++j) {
+      ans->top[i][j] = NULL;
+    }
+  }
+  first->left = NULL;
+  first->size = get - sizeof(struct roots) - sizeof(struct block);
+  first->payload[0] = NULL;
+  first->payload[1] = NULL;
+  block_set_freedom(first, 1);
+  block_set_end(first, 1);
+  roots_add_block(ans, first);
+  //place(first, ans);
+  return ans;
+}
+
+#define max_alloc (word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1))
+
+struct roots * init_tlsf_from_malloc(const size_t bsize) {
+  if (bsize > max_alloc) return NULL;
+  size_t size = word_bytes * (bsize/word_bytes + ((bsize & (word_bytes - 1)) > 0));
+  if (size < 2*word_bytes) size = 2*word_bytes;
+  const size_t get = size + sizeof(struct roots) + sizeof(struct block);
+  void * whole = malloc(get);
+  return init_tlsf_from_block(whole, get);
+}
+
+
+/*
+
+TOTEST: 
+free lists are not circular
+(with valgrind) left and right links always work
+left links are actually less
+stored blocks sum up to the expected size
+double links in free lists make sense
+*/
+  
+/* TOCHECK: offsets and alignments */
+
+void tlsf_free(struct roots * const r, void * const p) {
+  if ((NULL == r) || (NULL == p)) return;
+  struct block * b = ((struct block *)p) - 1;
+
+  struct block * const left = block_get_left(b);
+  struct block * const right = block_get_right(b);
+  if ((NULL != left) && block_get_freedom(left)) {
+    roots_detach_block(r, left);
+    coalesce_detached_blocks(left, b);
+    b = left;
+  }
+  if ((NULL != right) && block_get_freedom(right)) {
+    roots_detach_block(r, right);
+    coalesce_detached_blocks(b, right);
+  }
+
+  roots_add_block(r, b);
+  block_set_freedom(b, 1);
+}
+
+#if 0
+
+void block_garbage_fill(struct block * const b) {
+  /*
+  const size_t start = block_get_freedom(b) * 2;
+  for (size_t i = start; i < block_get_size(b); ++i) {
+    ((char *)b->payload)[i] = 0xff;
+  }
+  */
+}
 
 void test_roots_setbits(const struct roots * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
@@ -403,10 +377,6 @@ void test_roots_setbits(const struct roots * const r) {
     }
   }
 }
-
-
-
-
 
 void place_range(const size_t head, const size_t tail, size_t * const min, size_t * const max) {
   if (0 == head) {
@@ -428,7 +398,7 @@ size_t rword() {
   return ans;
 }
 
-#define max_alloc (word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1))
+
 
 void test_max_alloc() {
   static const size_t top = max_alloc + word_bits * word_bytes - word_bytes - 1;
@@ -528,86 +498,6 @@ void test_place() {
 }
 
 
-struct roots * init_tlsf_from_block(void * whole, const size_t get) {
-  if (NULL == whole) return NULL;
-  struct roots * ans = whole;
-  whole += sizeof(struct roots);
-  struct block * first = whole;
-  whole += sizeof(struct block);
-  ans->coarse = 0;
-  for (size_t i = 0; i < big_buckets; ++i) {
-    ans->fine[i] = 0;
-  }
-  for (size_t i = 0; i < big_buckets; ++i) {
-    for (size_t j = 0; j< word_bits; ++j) {
-      ans->top[i][j] = NULL;
-    }
-  }
-  first->left = NULL;
-  first->size = get - sizeof(struct roots) - sizeof(struct block);
-  first->payload[0] = NULL;
-  first->payload[1] = NULL;
-  block_set_freedom(first, 1);
-  block_set_end(first, 1);
-  roots_add_block(ans, first);
-  //place(first, ans);
-  return ans;
-}
-
-struct roots * init_tlsf_from_malloc(const size_t bsize) {
-  if (bsize > max_alloc) return NULL;
-  size_t size = word_bytes * (bsize/word_bytes + ((bsize & (word_bytes - 1)) > 0));
-  if (size < 2*word_bytes) size = 2*word_bytes;
-  const size_t get = size + sizeof(struct roots) + sizeof(struct block);
-  void * whole = malloc(get);
-  return init_tlsf_from_block(whole, get);
-}
-
-
-/*
-
-TOTEST: 
-free lists are not circular
-(with valgrind) left and right links always work
-left links are actually less
-stored blocks sum up to the expected size
-double links in free lists make sense
-*/
-  
-/* TOCHECK: offsets and alignments */
-
-void tlsf_free(struct roots * const r, void * const p) {
-  test_roots_valid(r, NULL);
-  if (NULL == p) return;
-  struct block * b = ((struct block *)p) - 1;
-  block_garbage_fill(b);
-  test_roots_valid(r, b);
-
-  struct block * const left = block_get_left(b);
-  struct block * const right = block_get_right(b);
-  test_roots_valid(r, left);
-  test_roots_valid(r, right);
-  if ((NULL != left) && block_get_freedom(left)) {
-    roots_detach_block(r, left);
-    coalesce_detached_blocks(left, b);
-    b = left;
-  }
-  if ((NULL != right) && block_get_freedom(right)) {
-    roots_detach_block(r, right);
-    coalesce_detached_blocks(b, right);
-  }
-  test_roots_valid(r, b);
-  block_garbage_fill(b);
-  test_roots_valid(r, b);
-
-  roots_add_block(r, b);
-  block_set_freedom(b, 1);
-  test_roots_valid(r, b);
-  for (size_t i = 0; i < 2 * sizeof (struct block *); ++i) {
-    ((char *)(b->payload))[i] = 0;
-  }
-}
-
 
 void test_roots_sizes(const struct roots * const r, const struct block * const b) {
   for (size_t i = 0; i < big_buckets; ++i) {
@@ -706,6 +596,88 @@ void test_roots() {
   }    
 }
 
+struct block_counts {
+  size_t free_count, used_count;
+};
+
+// returns 0 if we don't know.
+struct block_counts roots_block_counts(const struct roots * const r) {
+  struct block_counts ans = {0,0};
+  if (0 == r->coarse) return (struct block_counts){0,~0};
+  const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
+  const size_t leaf = __builtin_ffsll((unsigned long long)r->fine[root]) - 1;
+  struct block * b = r->top[root][leaf];
+  struct block * c = block_get_right(b);
+  while (NULL != b) {
+    if (block_get_freedom(b)) {
+      ans.free_count++;
+    } else {
+      ans.used_count++;
+    }
+    b = block_get_left(b);
+  }
+  while (NULL != c) {
+    if (block_get_freedom(c)) {
+      ans.free_count++;
+    } else {
+      ans.used_count++;
+    }
+    c = block_get_left(c);
+  }
+  assert (ans.used_count + 1 >= ans.free_count);
+  return ans;
+}
+
+
+void test_block_alias(const struct block * const a, const struct block * const b) {
+  if ((NULL == a) || (NULL == b)) return;
+  if (a == b) return;
+  if ((size_t)a < (size_t)b) {
+    assert ((size_t)(((char *)a) + sizeof(struct block) + block_get_size(a))
+            <= (size_t)(b));
+  } else {
+    assert ((size_t)(a) 
+            >= (size_t)(((char *)b) + sizeof(struct block) + block_get_size(b)));
+  }
+}
+
+
+// returns 0 if we don't know.
+// TODO: we don't actually check 0 return properly in test
+size_t roots_contiguous_managed_size(const struct roots * const r, const struct block * const d) {
+  if (0 == r->coarse) return 0;
+  const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
+  const size_t leaf = __builtin_ffsll((unsigned long long)r->fine[root]) - 1;
+  struct block * b = r->top[root][leaf];
+  int any = 1;
+  size_t ans = 0;
+  struct block * c = block_get_right(b);
+  assert ((NULL == c) || (b == block_get_left(c)));
+  while (NULL != b) {
+    ans += block_get_size(b) + sizeof(struct block);
+    assert (any | (0 == block_get_freedom(b)));
+    any = 1 - block_get_freedom(b);
+    assert ((NULL == block_get_left(b)) || (b == block_get_right(block_get_left(b))));
+    test_block_alias(b, d);
+    b = block_get_left(b);
+  }
+  any = 0;
+  while (NULL != c) {
+    ans += block_get_size(c) + sizeof(struct block);
+    assert (any | (0 == block_get_freedom(c)));
+    any = 1 - block_get_freedom(c);
+    assert ((NULL == block_get_right(c)) || (c == block_get_left(block_get_right(c))));
+    test_block_alias(c, d);
+    c = block_get_right(c);
+  }
+  return ans;
+}
+
+void test_word_sizes() {
+  assert (sizeof(void *) == sizeof(size_t));
+  assert ((((size_t)1) << word_log) == word_bits);
+}
+
 
 int main() {
   test_word_sizes();
@@ -713,3 +685,4 @@ int main() {
   test_roots();
 }
 
+#endif

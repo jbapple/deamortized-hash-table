@@ -35,7 +35,7 @@ void bench_malloc(const size_t n) {
 }
 
 void bench_tlsf(const size_t n) {
-  static roots * const r = init_tlsf(1ull << 30);
+  static roots * const r = init_tlsf_from_malloc(1ull << 30);
   static const size_t many = 4;
   static void* all[many];
   static size_t last = 0;
@@ -86,13 +86,17 @@ void bench_mmap(const size_t n) {
   //munmap(foo, n);
 }
 
+void bench_nothing(const size_t) {}
+
 void bench_new(const size_t n) {
   size_t * foo = new size_t[(n+7)/8]();
   delete foo;
 }
 
 int main() {
-  auto bar = median_time<bench_tlsf>(10000000, 1000, 10000*2*1000);
+  //PAPI_library_init( PAPI_VER_CURRENT );
+  //high_priority zz;
+  auto bar = median_time<bench_nothing>(10000000, 1000, 10000*2*1000);
   for (auto foo : bar) {
     cout << foo.first << '\t' << foo.second[0] << endl;
   }

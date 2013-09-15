@@ -16,6 +16,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+extern "C" {
+#include <papi.h>
+}
+
 using std::vector;
 using std::pair;
 using std::unordered_map;
@@ -30,6 +34,7 @@ struct high_priority {
 size_t median(size_t * data, const size_t length);
 
 vector<size_t> percentiles(const vector<size_t>& data, const vector<double>& tiers);
+float float_percentiles(const vector<float>& data, const vector<double>& tiers);
 
 //vector<size_t> draws(const size_t limit, const size_t resolution)
 
@@ -37,6 +42,45 @@ vector<size_t> percentiles(const vector<size_t>& data, const vector<double>& tie
 // process as a floating point number. Only works on Linux. Be sure to
 // link with -lrt.
 size_t get_time();
+
+template<void (*f)(const size_t)> 
+vector<pair<size_t, float > > 
+median_papi(const size_t limit, 
+            const size_t resolution, 
+            const size_t samples) {
+  static const vector<double> tiers(1, 0.5);
+  unordered_map<size_t, vector<float> > measurements;
+  srand(0);
+  for (size_t i = 0; i < samples; ++i) {
+    const size_t place = rand() % resolution;
+    size_t n = 0;
+    if (rand()%2) {
+      n = (limit * place) / resolution;
+    } else {
+      n = static_cast<size_t>(round(pow(static_cast<double>(limit), static_cast<double>(place)/static_cast<double>(resolution))));
+    }
+    long long res = 0;
+    int oops = 0;
+    float foo, bar, baz;
+    if ((oops = PAPI_ipc(&foo, &bar, &res, &baz)) < PAPI_OK) {
+      std::cerr << "PAPI fail: " << PAPI_strerror(oops) << std::endl;
+      exit(1);
+    }
+    f(n);
+    if ((oops = PAPI_ipc(&foo, &bar, &res, &baz)) < PAPI_OK) {
+      std::cerr << "PAPI fail: " << PAPI_strerror(oops) << std::endl;
+      exit(1);
+    }
+    measurements[n].push_back(bar);
+  }
+  vector<pair<size_t, float > > ans;
+  for(const auto& i : measurements) {
+    ans.push_back(std::make_pair(i.first, float_percentiles(i.second, tiers)));
+  }
+  sort(ans.begin(), ans.end());
+  return ans;
+}
+
 
 template<void (*f)(const size_t)> 
 vector<pair<size_t, vector<size_t> > > 
@@ -55,11 +99,11 @@ median_time(const size_t limit,
       n = static_cast<size_t>(round(pow(static_cast<double>(limit), static_cast<double>(place)/static_cast<double>(resolution))));
     }
     __sync_synchronize();
-    const size_t begin = get_time();
+    const size_t begin = get_time(); //PAPI_get_virt_nsec(); //get_time();
     __sync_synchronize();
     f(n);
     __sync_synchronize();
-    const size_t end = get_time();
+    const size_t end = get_time(); //PAPI_get_virt_nsec(); //get_time();
     __sync_synchronize();
     measurements[n].push_back(end-begin);
   }
@@ -70,6 +114,7 @@ median_time(const size_t limit,
   sort(ans.begin(), ans.end());
   return ans;
 }
+
 
 // reads a T from the string argument
 template<typename T>

@@ -13,15 +13,6 @@ template<typename Key,
 class LinearHashSet {
   typedef std::size_t size_t;
 public:
-  /*
-  explicit LinearHashSet(const size_t capacity);
-  LinearHashSet();
-  ~LinearHashSet();
-  bool insert(const Key&);
-  void erase(const Key&);
-  bool member(const Key&);
-  void swap(LinearHashSet&);
-  */
 
   LinearHashSet& operator=(const LinearHashSet&) = delete;
   LinearHashSet(const LinearHashSet&) = delete;

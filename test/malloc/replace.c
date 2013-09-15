@@ -6,6 +6,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#undef assert
+#define assert(x) ((x) ? (void)0 : *(void *)0)
 #include "tlsf.c"
 
 struct roots * pool = NULL;

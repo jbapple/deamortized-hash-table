@@ -25,7 +25,7 @@ high_priority::high_priority() : old_policy(sched_getscheduler(0)), old_sp() {
   cpu_set_t aff;
   CPU_ZERO(&aff);
   CPU_SET(0, &aff);
-  if (false && (-1 == sched_setaffinity(0, sizeof(cpu_set_t), &aff))) {
+  if (false and (-1 == sched_setaffinity(0, sizeof(cpu_set_t), &aff))) {
     std::cerr << "can't set affinity" << std::endl;
     //throw "can't set affinity";
     //exit(1);
@@ -48,8 +48,20 @@ size_t median(size_t * data, const size_t length) {
 
 vector<size_t> percentiles(const vector<size_t>& data, const vector<double>& ) {
   auto foo = data;
-  double ans = 0;
+  //size_t ans = 0;
+  //for (const auto& x: foo) ans = std::max(ans, x);
+  //return vector<size_t>(1, ans);
   sort(foo.begin(), foo.end());
-  for (auto i : foo)  ans += i;
-  return vector<size_t>(1,ans/foo.size());//foo.front());//[foo.size() * 0.99]);//foo[foo.size()/2]);
+  //for (auto i : foo)  ans += i;
+  return vector<size_t>(1,foo[std::min(foo.size()-1, (size_t)(foo.size() * 0.99))]);//ans/foo.size());//foo.front());//foo[foo.size()/2]);
+}
+
+float float_percentiles(const vector<float>& data, const vector<double>& ) {
+  auto foo = data;
+  float ans = 0;
+  for (const auto& x: foo) ans = std::max(ans, x);
+  return ans;
+  //sort(foo.begin(), foo.end());
+  //for (auto i : foo)  ans += i;
+  //return foo[std::min(foo.size()-1, (size_t)(foo.size() * 0.5))];//ans/foo.size());//foo.front());//foo[foo.size()/2]);
 }
