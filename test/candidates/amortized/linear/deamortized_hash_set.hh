@@ -224,6 +224,7 @@ struct DeamortizedHashSet {
   DeamortizedHashSet() :
     allocator(), far(allocator,0), near(allocator,32) {
     near.init(1);
+    near.state = LimitedHashSet<Key, Hash, Equal,Allocate>::ACT::FILL;
   }
         
   Allocate allocator;
