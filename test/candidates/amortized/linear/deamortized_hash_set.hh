@@ -236,7 +236,7 @@ struct DeamortizedHashSet {
   };
 
   // how much time you have to do this
-  pair<ACT, size_t> get_act() const {
+  pair<ACT, size_t> get_act_help() const {
     if (near.size < near.capacity/8) return make_pair(SWAP, 1);
     if (near.size < 3*(near.capacity/16)) return make_pair(FILL, near.size - near.capacity/8);
     if (near.size < 7*(near.capacity/32)) return make_pair(SMALLER, near.size - 3*(near.capacity/16));
@@ -247,6 +247,11 @@ struct DeamortizedHashSet {
     return make_pair(SWAP, 1);
   }
   
+  pair<ACT, size_t> get_act() const {
+    if ((near.capacity <= 32) and (near.size < 7)) return make_pair(CLEAR, 32);
+    return get_act_help();
+  }
+
   void erase(const Key& k) {
     vector<pair<Key *, pair<size_t, size_t> > >  moved_back = near.erase(k);
     const auto act = get_act();
