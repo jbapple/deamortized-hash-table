@@ -237,17 +237,19 @@ struct DeamortizedHashSet {
   // 1/2: fill new
 
   enum ACT : char {
-    CLEAR, BIGGER, SMALLER, FILL, SWAP, RELAX
+    CLEAR, MAKE_BIGGER, INIT_BIGGER, MAKE_SMALLER, INIT_SMALLER, FILL, SWAP, RELAX
   };
 
   // how much time you have to do this
   pair<ACT, size_t> get_act_help() const {
     if (near.size < near.capacity/8) return make_pair(SWAP, 1);
     if (near.size < 3*(near.capacity/16)) return make_pair(FILL, near.size - near.capacity/8);
-    if (near.size < 7*(near.capacity/32)) return make_pair(SMALLER, near.size - 3*(near.capacity/16));
+    if (near.size < 7*(near.capacity/32) - 1) return make_pair(INIT_SMALLER, near.size - 3*(near.capacity/16));
+    if (near.size < 7*(near.capacity/32)) return make_pair(MAKE_SMALLER, near.size - 3*(near.capacity/16));
     if (near.size < near.capacity/4) return make_pair(CLEAR, near.size - 7*(near.capacity/32));
     if (near.size < 5*(near.capacity/16)) return make_pair(CLEAR, 5*(near.capacity/16) - near.size);
-    if (near.size < 3*(near.capacity/8)) return make_pair(BIGGER, 3*(near.capacity/8) - near.size);
+    if (near.size < 5*(near.capacity/16) + 1) return make_pair(MAKE_BIGGER, 5*(near.capacity/16) - near.size);
+    if (near.size < 3*(near.capacity/8)) return make_pair(INIT_BIGGER, 3*(near.capacity/8) - near.size);
     if (near.size < near.capacity/2) return make_pair(FILL, near.capacity/2 - near.size);
     return make_pair(SWAP, 1);
   }
@@ -266,12 +268,14 @@ struct DeamortizedHashSet {
     case CLEAR:
       far.clear(act.second);
       break;
-    case BIGGER:
+    case MAKE_BIGGER:
       far.reset(near.capacity*2);
+    case INIT_BIGGER:
       far.init(act.second);
       break;
-    case SMALLER:
+    case MAKE_SMALLER:
       far.reset(near.capacity/2);
+    case INIT_SMALLER:
       far.init(act.second);
       break;
     case FILL:
@@ -295,12 +299,14 @@ struct DeamortizedHashSet {
     case CLEAR:
       far.clear(act.second);
       break;
-    case BIGGER:
+    case MAKE_BIGGER:
       far.reset(near.capacity*2);
+    case INIT_BIGGER:
       far.init(act.second);
       break;
-    case SMALLER:
+    case MAKE_SMALLER:
       far.reset(near.capacity/2);
+    case INIT_SMALLER:
       far.init(act.second);
       break;
     case FILL:
