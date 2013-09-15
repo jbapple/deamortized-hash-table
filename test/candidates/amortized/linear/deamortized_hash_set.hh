@@ -207,6 +207,7 @@ public:
     if (data[i].occupied) return false;
     new (&data[i].key) Key(k);
     ++size;
+    data[i].occupied = true;
     return true;
   }
 
