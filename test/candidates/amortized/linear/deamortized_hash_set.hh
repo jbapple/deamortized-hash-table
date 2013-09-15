@@ -117,9 +117,11 @@ public:
     assert ((0 == capacity) || (state == CLEAR));
     state = RESET;
     size = 0;
-    allocator.deallocate(data, capacity);
-    capacity = new_capacity;
-    data = allocator.allocate(capacity);
+    if (new_capacity != capacity) {
+      allocator.deallocate(data, capacity);
+      capacity = new_capacity;
+      data = allocator.allocate(capacity);
+    }
     progress = 0;
   }
 
@@ -264,11 +266,11 @@ struct DeamortizedHashSet {
       far.clear(act.second);
       break;
     case BIGGER:
-      if (far.capacity <= near.capacity) far.reset(near.capacity*2);
+      far.reset(near.capacity*2);
       far.init(act.second);
       break;
     case SMALLER:
-      if (far.capacity >= near.capacity) far.reset(near.capacity/2);
+      far.reset(near.capacity/2);
       far.init(act.second);
       break;
     case FILL:
@@ -293,11 +295,11 @@ struct DeamortizedHashSet {
       far.clear(act.second);
       break;
     case BIGGER:
-      if (far.capacity <= near.capacity) far.reset(near.capacity*2);
+      far.reset(near.capacity*2);
       far.init(act.second);
       break;
     case SMALLER:
-      if (far.capacity >= near.capacity) far.reset(near.capacity/2);
+      far.reset(near.capacity/2);
       far.init(act.second);
       break;
     case FILL:
