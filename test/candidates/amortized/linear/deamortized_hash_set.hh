@@ -132,7 +132,7 @@ public:
     }
     state = FILL;
     // don't care about *my* progress
-    const size_t many = left ? ((that.capacity - progress + left - 1)/left) : (capacity - progress);
+    const size_t many = left ? ((that.capacity - progress + left - 1)/left) : (that.capacity - progress);
     for (size_t i = 0; i < many; ++i) {
       if (that.data[progress].occupied) insert(that.data[progress].key);
       ++progress;
