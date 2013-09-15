@@ -195,9 +195,9 @@ public:
       if (not cyclic_between(start,h,i)) {
         data[start].occupied = true;
         new (&data[start].key) Key(std::move(data[i].key));
+        ans.push_back(make_pair(&data[start].key, make_pair(i, start)));
         start = i;
         data[i].occupied = false;
-        ans.push_back(make_pair(&data[start].key, make_pair(i, start)));
         //data[i].key.~Key(); // no : already moved it?
       }
       i = (i+1) & cap_mask;

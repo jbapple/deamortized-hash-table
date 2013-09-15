@@ -3,9 +3,9 @@
 int main() {
   DeamortizedHashSet<int> foo;
   for (int i = 0; i < 1000000; ++i) {
-    foo.insert(rand() & (0xffff));
+    foo.insert(rand());
   }
-  for (int i = 0; i < 0xffff; ++i) {
+  for (int i = 0; i < RAND_MAX; ++i) {
     foo.erase(i);
   }
 }
