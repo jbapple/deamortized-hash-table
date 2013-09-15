@@ -143,7 +143,7 @@ public:
     for (const auto & kft : moved_back) {
       if ((kft.second.first >= progress) 
           and (kft.second.second < progress)) {
-        insert(kft.first);
+        insert(*kft.first);
       }
     }
   }
@@ -185,7 +185,7 @@ public:
     vector<pair<Key *, pair<size_t, size_t> > > ans;
     const size_t cap_mask = capacity-1;
     size_t start = locate(k); // the empty location
-    if (not data[start].occupied) return;
+    if (not data[start].occupied) return ans;
     data[start].occupied = false;
     data[start].key.~Key();
     --size;
@@ -202,6 +202,7 @@ public:
       }
       i = (i+1) & cap_mask;
     }
+    return ans;
   }
 
   bool insert(const Key& k) {
