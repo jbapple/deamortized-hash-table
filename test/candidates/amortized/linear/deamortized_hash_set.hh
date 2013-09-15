@@ -95,7 +95,7 @@ public:
     state = CLEAR;
     const size_t many = left ? ((capacity - progress + left - 1)/left) : (capacity - progress);
     for (size_t i = 0; i < many; ++i) {      
-      allocator.destroy(&data[progress]);
+      if (data[progress].occupied) allocator.destroy(&data[progress]);
       ++progress;
     }
   }
