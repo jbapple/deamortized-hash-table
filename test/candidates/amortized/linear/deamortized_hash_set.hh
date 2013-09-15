@@ -114,7 +114,7 @@ public:
   }
 
   void reset(const size_t new_capacity) {
-    assert ((0 == capacity) || (state == CLEAR));
+    assert ((0 == capacity) || (state == CLEAR) || (INIT == state));
     state = RESET;
     size = 0;
     if (new_capacity != capacity) {
