@@ -88,7 +88,7 @@ public:
   }
 
   void clear(const size_t left) {
-    assert ((state == FILL) || (state == CLEAR));
+    assert ((0 == capacity) || (state == FILL) || (state == CLEAR));
     if (state == FILL) {
       progress = 0;
     }
@@ -101,7 +101,7 @@ public:
   }
 
   void init(const size_t left) {
-    assert ((state == RESET) || (state == INIT));
+    assert ((0 == capacity) || (state == RESET) || (state == INIT));
     if (RESET == state) {
       progress = 0;
     }
@@ -114,7 +114,7 @@ public:
   }
 
   void reset(const size_t new_capacity) {
-    assert (state == CLEAR);
+    assert ((0 == capacity) || (state == CLEAR));
     state = RESET;
     size = 0;
     allocator.deallocate(data, capacity);
@@ -124,7 +124,7 @@ public:
   }
 
   void fill(const size_t left, const LimitedHashSet& that) {
-    assert ((state == FILL) || (state == INIT));
+    assert ((0 == capacity) || (state == FILL) || (state == INIT));
     if (INIT == state) {
       progress = 0;
     }
