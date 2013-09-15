@@ -93,7 +93,7 @@ public:
       progress = 0;
     }
     state = CLEAR;
-    const size_t many = (capacity - progress + left - 1)/left;
+    const size_t many = left ? ((capacity - progress + left - 1)/left) : (capacity - progress);
     for (size_t i = 0; i < many; ++i) {      
       allocator.destroy(&data[progress]);
       ++progress;
@@ -106,7 +106,7 @@ public:
       progress = 0;
     }
     state = INIT;
-    const size_t many = (capacity - progress + left - 1)/left;
+    const size_t many = left ? ((capacity - progress + left - 1)/left) : (capacity - progress);
     for (size_t i = 0; i < many; ++i) {      
       data[progress].occupied = false;
       ++progress;
@@ -130,7 +130,7 @@ public:
     }
     state = FILL;
     // don't care about *my* progress
-    const size_t many = (that.capacity - progress + left - 1)/left;
+    const size_t many = left ? ((that.capacity - progress + left - 1)/left) : (capacity - progress);
     for (size_t i = 0; i < many; ++i) {
       insert(that.data[progress].key);
       ++progress;
