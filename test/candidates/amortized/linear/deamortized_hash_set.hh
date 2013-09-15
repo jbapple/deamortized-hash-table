@@ -206,6 +206,7 @@ public:
     const size_t i = locate(k);
     if (data[i].occupied) return false;
     new (&data[i].key) Key(k);
+    ++size;
     return true;
   }
 
