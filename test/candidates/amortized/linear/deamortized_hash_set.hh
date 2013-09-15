@@ -232,7 +232,7 @@ struct DeamortizedHashSet {
   // 1/2: fill new
 
   enum ACT : char {
-    CLEAR, BIGGER, SMALLER, FILL, SWAP
+    CLEAR, BIGGER, SMALLER, FILL, SWAP, RELAX
   };
 
   // how much time you have to do this
@@ -248,7 +248,7 @@ struct DeamortizedHashSet {
   }
   
   pair<ACT, size_t> get_act() const {
-    if ((near.capacity <= 32) and (near.size < 7)) return make_pair(CLEAR, 32);
+    if ((near.capacity <= 32) and (near.size < 7)) return make_pair(RELAX, 0);
     return get_act_help();
   }
 
@@ -256,6 +256,8 @@ struct DeamortizedHashSet {
     vector<pair<Key *, pair<size_t, size_t> > >  moved_back = near.erase(k);
     const auto act = get_act();
     switch (act.first) {
+    case RELAX:
+      break;
     case CLEAR:
       far.clear(act.second);
       break;
@@ -283,6 +285,8 @@ struct DeamortizedHashSet {
     const bool ans = near.insert(k);
     const auto act = get_act();
     switch (act.first) {
+    case RELAX:
+      break;
     case CLEAR:
       far.clear(act.second);
       break;
@@ -298,7 +302,7 @@ struct DeamortizedHashSet {
       far.fill(act.second, near);
       far.insert(k);
       break;
-    default:
+    default: // SWAP
       far.swap(near);
       near.insert(k);
     }
