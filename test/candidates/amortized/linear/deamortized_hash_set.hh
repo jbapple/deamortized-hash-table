@@ -101,7 +101,7 @@ public:
   }
 
   void init(const size_t left) {
-    assert ((0 == capacity) || (state == RESET) || (state == INIT));
+    assert ((0 == capacity) || (state == RESET) || (state == INIT) || (FILL == state));
     if (RESET == state) {
       progress = 0;
     }
@@ -114,7 +114,7 @@ public:
   }
 
   void reset(const size_t new_capacity) {
-    assert ((0 == capacity) || (state == CLEAR) || (INIT == state) || (FILL == state));
+    assert ((0 == capacity) || (state == CLEAR) || (INIT == state));
     state = RESET;
     size = 0;
     if (new_capacity != capacity) {
