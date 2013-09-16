@@ -8,6 +8,9 @@
 #include <cstddef>
 #include <memory>
 #include <vector>
+#include <iostream>
+
+using namespace std;
 
 using std::vector;
 using std::pair;
@@ -15,6 +18,13 @@ using std::make_pair;
 
 #include "tlsf_allocator.hpp"
 
+void callout(const size_t many) {
+  static size_t top = 0;
+  if (many > top) {
+    cout << many << endl;
+    top = many;
+  }
+}
 
 template<typename Key,
          typename Hash = std::hash<Key>, 
@@ -88,12 +98,13 @@ public:
   }
 
   void clear(const size_t left) {
-    assert ((0 == capacity) || (state == FILL) || (state == CLEAR));
+    assert ((0 == capacity) || (state == FILL) || (state == CLEAR) || (state == INIT));
     if (state == FILL) {
       progress = 0;
     }
     state = CLEAR;
     const size_t many = left ? ((capacity - progress + left - 1)/left) : (capacity - progress);
+    callout(many);
     for (size_t i = 0; i < many; ++i) {      
       if (data[progress].occupied) allocator.destroy(&data[progress]);
       ++progress;
@@ -107,6 +118,7 @@ public:
     }
     state = INIT;
     const size_t many = left ? ((capacity - progress + left - 1)/left) : (capacity - progress);
+    callout(many);
     for (size_t i = 0; i < many; ++i) {      
       data[progress].occupied = false;
       ++progress;
@@ -133,6 +145,7 @@ public:
     state = FILL;
     // don't care about *my* progress
     const size_t many = left ? ((that.capacity - progress + left - 1)/left) : (that.capacity - progress);
+    callout(many);
     for (size_t i = 0; i < many; ++i) {
       if (that.data[progress].occupied) insert(that.data[progress].key);
       ++progress;
@@ -140,6 +153,7 @@ public:
   }
 
   void catch_up(const vector<pair<Key *, pair<size_t, size_t> > > & moved_back) {
+    callout(moved_back.size());
     for (const auto & kft : moved_back) {
       if ((kft.second.first >= progress) 
           and (kft.second.second < progress)) {
@@ -248,7 +262,7 @@ struct DeamortizedHashSet {
     if (near.size < 7*(near.capacity/32)) return make_pair(MAKE_SMALLER, near.size - 3*(near.capacity/16));
     if (near.size < near.capacity/4) return make_pair(CLEAR, near.size - 7*(near.capacity/32));
     if (near.size < 5*(near.capacity/16)) return make_pair(CLEAR, 5*(near.capacity/16) - near.size);
-    if (near.size < 5*(near.capacity/16) + 1) return make_pair(MAKE_BIGGER, 5*(near.capacity/16) - near.size);
+    if (near.size < 5*(near.capacity/16) + 1) return make_pair(MAKE_BIGGER, 3*(near.capacity/8) - near.size);
     if (near.size < 3*(near.capacity/8)) return make_pair(INIT_BIGGER, 3*(near.capacity/8) - near.size);
     if (near.size < near.capacity/2) return make_pair(FILL, near.capacity/2 - near.size);
     return make_pair(SWAP, 1);
@@ -260,7 +274,7 @@ struct DeamortizedHashSet {
   }
 
   void erase(const Key& k) {
-    vector<pair<Key *, pair<size_t, size_t> > >  moved_back = near.erase(k);
+    const vector<pair<Key *, pair<size_t, size_t> > >  moved_back = near.erase(k);
     const auto act = get_act();
     switch (act.first) {
     case RELAX:

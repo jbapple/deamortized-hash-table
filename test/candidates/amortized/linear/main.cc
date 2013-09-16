@@ -1,12 +1,16 @@
 #include "deamortized_hash_set.hh"
 
 int main() {
-  DeamortizedHashSet<int> foo;
-  for (int i = 0; i < 1000000; ++i) {
-    foo.insert(rand());
-  }
-  for (int i = 0; i < RAND_MAX; ++i) {
-    foo.erase(i);
+  for (int j = 0; j < 30; ++j) {
+    DeamortizedHashSet<int> foo;
+    srand(0);
+    for (int i = 0; i < (1 << j); ++i) {
+      foo.insert(rand());
+    }
+    srand(0);
+    for (int i = 0; i < (1 << j); ++i) {
+      foo.erase(rand());
+    }
   }
 }
 
