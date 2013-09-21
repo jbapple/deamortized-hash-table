@@ -262,11 +262,17 @@ struct block * block_split_detached(struct block * const b, const size_t n) {
   return next;
 }
 
-// TODO: what is 0 bytes are requested?
+// TODO: what if 0 bytes are requested?
 void * tlsf_malloc(struct roots * const r, const size_t n) {
   if (NULL == r) return NULL;
-  const struct location l = roots_find_fitting(r, n);
-  if (l.root >= big_buckets) return NULL;
+  struct location l = roots_find_fitting(r, n);
+  if (l.root >= big_buckets) {
+    struct block * const b = malloc(sizeof(struct block) + ((n < (1 << 20)) ? (1 << 20) : n));
+    if (NULL == b) return NULL;
+    roots_add_block(r, b);
+    l = roots_find_fitting(r, n);
+    assert (l.root < big_buckets);
+  }
   struct block * const b = roots_get_freelist(r, l);
   roots_detach_block(r, b);
   struct block * const c = block_split_detached(b, n);
@@ -279,8 +285,18 @@ void * tlsf_malloc(struct roots * const r, const size_t n) {
   return b->payload;
 }
 
-// TODO: realloc, calloc
+void block_init(struct block * const b, const size_t n) {
+  b->left = NULL;
+  b->size = n - sizeof(struct block);
+  b->payload[0] = NULL;
+  b->payload[1] = NULL;
+  block_set_freedom(b, 1);
+  block_set_end(b, 1);
+}
 
+// TODO: multithreading
+
+// TODO: realloc, calloc
 struct roots * init_tlsf_from_block(void * whole, const size_t get) {
   if (NULL == whole) return NULL;
   struct roots * ans = whole;
@@ -296,14 +312,8 @@ struct roots * init_tlsf_from_block(void * whole, const size_t get) {
       ans->top[i][j] = NULL;
     }
   }
-  first->left = NULL;
-  first->size = get - sizeof(struct roots) - sizeof(struct block);
-  first->payload[0] = NULL;
-  first->payload[1] = NULL;
-  block_set_freedom(first, 1);
-  block_set_end(first, 1);
+  block_init(first, get - sizeof(struct roots));
   roots_add_block(ans, first);
-  //place(first, ans);
   return ans;
 }
 
