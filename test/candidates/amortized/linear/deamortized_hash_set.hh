@@ -19,12 +19,19 @@ using std::make_pair;
 #include "tlsf_allocator.hpp"
 
 void callout(const size_t many) {
+  /*
   static size_t top = 0;
   if (many > top) {
     cout << many << endl;
     top = many;
   }
+  */
 }
+
+  enum DIR : char {
+    UP, DOWN
+  };
+
 
 template<typename Key,
          typename Hash = std::hash<Key>, 
@@ -54,8 +61,9 @@ public:
   Slot * data;
   size_t progress;
   enum ACT : char {
-    FILL, CLEAR, INIT
+    FILL, USE, CLEAR, INIT
   } state;
+  DIR dir;
 
 public:
 
@@ -68,20 +76,22 @@ public:
     std::swap(data, that.data);
     std::swap(progress, that.progress);
     std::swap(state, that.state);
+    std::swap(dir, that.dir);
   }
 
   explicit LimitedHashSet(const Allocate& a, const size_t cap)
     : hasher(), equaler(), allocator(a), capacity(cap), size(0), 
-    data(allocator.allocate(capacity)), progress(capacity/2), state(FILL)
+      data(allocator.allocate(capacity)), progress(capacity/2), 
+      state(USE), dir(UP)
   {
     for(size_t i = 0; i < capacity; ++i) {
       data[i].occupied = false;
     }
   }
 
-  // TODO: this need to take state into account
   ~LimitedHashSet() {
     switch (state) {
+    case USE:
     case FILL:
       for (size_t i = 0; i < capacity; ++i) {
         if (data[i].occupied) allocator.destroy(&data[i]);
@@ -99,12 +109,13 @@ public:
     allocator.deallocate(data, capacity);
   }
 
-  void fill(const size_t left, const LimitedHashSet& that) {
+  void fill(const size_t left, const LimitedHashSet& that, const DIR d) {
     assert ((FILL == state) or ((INIT == state) and (capacity == progress)));
     if (INIT == state) {
       progress = 0;
       state = FILL;
     }
+    dir = d;
     // don't care about *my* progress
     const size_t many = left ? ((that.capacity - progress + left - 1)/left) : (that.capacity - progress);
     callout(many);
@@ -114,19 +125,31 @@ public:
     }
   }
 
-  void clear(const size_t left) {
+  void set_ready() {
+    state = USE;
+  }
+
+  void clear(const size_t left, const DIR d) {
     if (INIT == state) {
       progress = capacity;
       state = CLEAR;
       return;
     }
     if (FILL == state) {
+      if (d == dir) {
+        return;
+      }
       progress = 0;
       state = CLEAR;
     }
+    if (USE == state) {
+      progress = 0;
+      state = CLEAR;
+    }
+    dir = d;
     size_t many = left ? ((capacity - progress + left - 1)/left) : (capacity - progress);
     // ugly hack
-    many = std::min((size_t)128,many);
+    //many = std::min((size_t)128,many);
     callout(many);
 
 
@@ -251,6 +274,10 @@ template<typename Key,
          typename Allocate = TlsfAllocator<Key> >
 struct DeamortizedHashSet {
 
+  Key * find(const Key& k) {
+    return near.find(k);
+  }
+
   DeamortizedHashSet() :
     allocator(), far(allocator,0), near(allocator,32) {
   }
@@ -262,50 +289,55 @@ struct DeamortizedHashSet {
   // 1/2: fill new
 
   enum ACT : char {
-    CLEAR, BIGGER, SMALLER, FILL, SWAP, RELAX
+    CLEAR, INIT, FILL, SWAP, RELAX
+  };
+
+
+  struct state {
+    ACT act;
+    size_t size;
+    DIR dir;
   };
 
   // TODO: need to distinguish between down clear and up clear
   // how much time you have to do this
-  pair<ACT, size_t> get_act_help() const {
-    if (near.size < near.capacity/8) return make_pair(SWAP, 1);
-    if (near.size < 3*(near.capacity/16)) return make_pair(FILL, near.size - near.capacity/8);
-    if (near.size < 7*(near.capacity/32)) return make_pair(SMALLER, near.size - 3*(near.capacity/16));
-    if (near.size < near.capacity/4) return make_pair(CLEAR, near.size - 7*(near.capacity/32));
-    if (near.size < 5*(near.capacity/16)) return make_pair(CLEAR, 5*(near.capacity/16) - near.size);
-    if (near.size < 3*(near.capacity/8)) return make_pair(BIGGER, 3*(near.capacity/8) - near.size);
-    if (near.size < near.capacity/2) return make_pair(FILL, near.capacity/2 - near.size);
-    return make_pair(SWAP, 1);
+  state get_act_help() const {
+    if (near.size < near.capacity/8) return {SWAP, 1, DOWN};
+    if (near.size < 3*(near.capacity/16)) return {FILL, near.size - near.capacity/8, DOWN};
+    if (near.size < 7*(near.capacity/32)) return {INIT, near.size - 3*(near.capacity/16), DOWN};
+    if (near.size < near.capacity/4) return {CLEAR, near.size - 7*(near.capacity/32), DOWN};
+    if (near.size < 5*(near.capacity/16)) return {CLEAR, 5*(near.capacity/16) - near.size, UP};
+    if (near.size < 3*(near.capacity/8)) return {INIT, 3*(near.capacity/8) - near.size, UP};
+    if (near.size < near.capacity/2) return {FILL, near.capacity/2 - near.size, UP};
+    return {SWAP, 1, UP};
   }
   
-  pair<ACT, size_t> get_act() const {
-    if ((near.capacity <= 32) and (near.size < 8)) return make_pair(RELAX, 0);
+  state get_act() const {
+    if ((near.capacity <= 32) and (near.size < 8)) return {RELAX, 0, UP};
     return get_act_help();
   }
 
   void erase(const Key& k) {
     const vector<pair<Key *, pair<size_t, size_t> > >  moved_back = near.erase(k);
     const auto act = get_act();
-    switch (act.first) {
+    switch (act.act) {
     case RELAX:
       break;
     case CLEAR:
-      far.clear(act.second);
+      far.clear(act.size, act.dir);
       break;
-    case BIGGER:
-      far.init(act.second, near.capacity*2);
-      break;
-    case SMALLER:
-      far.init(act.second, near.capacity/2);
+    case INIT:
+      far.init(act.size, (act.dir == UP) ? near.capacity*2 : near.capacity/2);
       break;
     case FILL:
-      far.fill(act.second, near);
+      far.fill(act.size, near, act.dir);
       far.erase(k);
       far.catch_up(moved_back);
       break;
     default: // SWAP
       far.swap(near);
       far.erase(k);
+      near.set_ready();
     }
   }
 
@@ -313,27 +345,26 @@ struct DeamortizedHashSet {
   bool insert(const Key& k) {
     const bool ans = near.insert(k);
     const auto act = get_act();
-    switch (act.first) {
+    switch (act.act) {
     case RELAX:
       break;
     case CLEAR:
-      far.clear(act.second);
+      far.clear(act.size, act.dir);
       break;
-    case BIGGER:
-      far.init(act.second, near.capacity*2);
-      break;
-    case SMALLER:
-      far.init(act.second, near.capacity/2);
+    case INIT:
+      far.init(act.size, (act.dir == UP) ? near.capacity*2 : near.capacity/2);
       break;
     case FILL:
-      far.fill(act.second, near);
+      far.fill(act.size, near, act.dir);
       far.insert(k);
       break;
     default: // SWAP
       far.swap(near);
       near.insert(k);
+      near.set_ready();
     }
     return ans;
+    
   }
 };
 
