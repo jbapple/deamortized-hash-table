@@ -84,6 +84,12 @@ public:
       data(allocator.allocate(capacity)), progress(capacity/2), 
       state(USE), dir(UP)
   {
+    /*
+      if (NULL == data) { 
+      cout << ((size_t)a.pool) << endl;
+    }
+    */
+    assert ((NULL != data) or (0 == capacity));
     for(size_t i = 0; i < capacity; ++i) {
       data[i].occupied = false;
     }
@@ -202,6 +208,7 @@ private:
   // find a key. capacity must be > 0. if key is not present, returns
   // location where it would be if it were newly placed.
   size_t locate(const Key& k) const {
+    //assert (count_full() == size);
     const size_t cap_mask = capacity-1;
     auto h = hasher(k) & cap_mask;
     while (true) {
@@ -209,6 +216,14 @@ private:
       if (equaler(data[h].key, k)) return h;
       h = (h+1) & cap_mask;
     }
+  }
+
+  size_t count_full() const {
+    size_t ans = 0;
+    for (size_t i = 0; i < capacity; ++i) {
+      if (data[i].occupied) ++ans;
+    }
+    return ans;
   }
 
   // i < j <= k, mod capacity
@@ -278,8 +293,8 @@ struct DeamortizedHashSet {
     return near.find(k);
   }
 
-  DeamortizedHashSet() :
-    allocator(), far(allocator,0), near(allocator,32) {
+  DeamortizedHashSet(const Allocate & a) :
+    allocator(a), far(allocator,0), near(allocator,32) {
   }
         
   Allocate allocator;

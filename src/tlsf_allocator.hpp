@@ -21,8 +21,14 @@ struct TlsfAllocator {
   };
   
   roots * pool;
-  static const size_t start_size = static_cast<size_t>(1) << 32;
-  inline explicit TlsfAllocator() : pool(init_tlsf_from_malloc(start_size)) {}
+  static const size_t start_size = static_cast<size_t>(1) << 34;
+  inline explicit TlsfAllocator() : pool(init_tlsf_from_malloc(start_size)) {
+    size_t size = start_size >> 1;
+    while (NULL == pool) {
+      pool = init_tlsf_from_malloc(size);
+      size >>= 1;
+    }
+  }
   // TODO: when to delete pool?
   //inline ~Allocator() {}
   inline TlsfAllocator(TlsfAllocator const& that) : pool(that.pool) {}
