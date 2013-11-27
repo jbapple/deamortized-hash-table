@@ -2,7 +2,9 @@
 
 struct roots;
 
-struct roots * init_tlsf_from_malloc(const size_t size);
-struct roots * init_tlsf_from_block(void * begin, const size_t length);
-void * tlsf_malloc(struct roots * const, const size_t);
-void tlsf_free(struct roots * const, void * const);
+// TODO: give memory back to the OS
+
+struct roots * tlsf_init_from_block(void * begin, size_t length);
+void * tlsf_malloc(struct roots *, size_t);
+void tlsf_free(struct roots *, void *);
+voif tlsf_add_block(struct roots *, void * begin, size_t length)
