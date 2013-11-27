@@ -7,4 +7,4 @@ struct roots;
 struct roots * tlsf_init_from_block(void * begin, size_t length);
 void * tlsf_malloc(struct roots *, size_t);
 void tlsf_free(struct roots *, void *);
-voif tlsf_add_block(struct roots *, void * begin, size_t length)
+voif tlsf_add_block(struct roots *, void * begin, size_t length);

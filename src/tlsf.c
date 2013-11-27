@@ -310,7 +310,7 @@ struct roots * init_tlsf_from_malloc(const size_t bsize) {
   if (size < 2*word_bytes) size = 2*word_bytes;
   const size_t get = size + sizeof(struct roots) + sizeof(struct block);
   void * whole = malloc(get);
-  return init_tlsf_from_block(whole, get);
+  return tlsf_init_from_block(whole, get);
 }
 
 
