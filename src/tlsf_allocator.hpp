@@ -1,11 +1,19 @@
 #ifndef TLSF_ALLOCATOR_HPP
 #define TLSF_ALLOCATOR_HPP
 
+#include <atomic>
+#include <cstdlib>
+
 extern "C" {
 #include "tlsf.h"
 }
 
+extern std::atomic<roots *> tlsf_alloc_pool;
+
 // TODO: alignment
+// TODO: thread safety
+// TODO: thread local malloc. PROBLEM: can't pass blocks from thread to thread
+// TODO: global malloc lock
 template<typename T>
 struct TlsfAllocator {
   typedef T value_type;
@@ -14,44 +22,48 @@ struct TlsfAllocator {
   typedef value_type& reference;
   typedef const value_type& const_reference;
   typedef std::size_t size_type;
-  //typedef std::ptrdiff_t difference_type;
   template<typename U>
   struct rebind {
     typedef TlsfAllocator<U> other;
   };
   
-  roots * pool;
-  static const size_t start_size = static_cast<size_t>(1) << 34;
-  inline explicit TlsfAllocator() : pool(init_tlsf_from_malloc(start_size)) {
-    size_t size = start_size >> 1;
-    while (NULL == pool) {
-      pool = init_tlsf_from_malloc(size);
-      size >>= 1;
-    }
-  }
-  // TODO: when to delete pool?
-  //inline ~Allocator() {}
-  inline TlsfAllocator(TlsfAllocator const& that) : pool(that.pool) {}
   template<typename U>
-  inline TlsfAllocator(TlsfAllocator<U> const& that) : pool(that.pool) {}
+  inline TlsfAllocator(TlsfAllocator<U> const&) {}
 
-  //    address
-  //inline pointer address(reference r) { return &r; }
-  //inline const_pointer address(const_reference r) { return &r; }
-
-  inline pointer allocate(size_type cnt) { 
-                                                             //                          typename std::allocator<void>::const_pointer = 0) { 
-    return reinterpret_cast<pointer>(tlsf_malloc(pool, cnt * sizeof (T))); 
+  inline pointer allocate(size_type count) {
+    auto pool = tlsf_alloc_pool.load();
+    if (NULL == pool) {
+      const size_t size = tlsf_padding + count * sizeof(T);
+      void * const block = malloc(size);
+      if (NULL == block) return nullptr;
+      std::atomic<roots *> new_pool = tlsf_init_from_block(block, size);
+      roots * expected = nullptr;
+      if (tlsf_alloc_pool.compare_exchange_strong(expected, new_pool)) {
+        pool = new_pool;
+      } else {
+        free(block);
+      }
+    }
+    pointer ans = reinterpret_cast<pointer>(tlsf_malloc(pool, count * sizeof(T)));
+    if (NULL == ans) {
+      const size_t size = tlsf_get_capacity(pool) + count * sizeof(T);
+      void * const block = malloc(size);
+      if (NULL == block) return nullptr;
+      tlsf_add_block(pool, block, size);
+      // TODO: lock around mallc and free in TLSF
+    }
+    ans = reinterpret_cast<pointer>(tlsf_malloc(pool, count * sizeof(T)));
+    if (NULL == ans) return nullptr;
+    return ans;
   }
   inline void deallocate(pointer p, size_type) { 
-    tlsf_free(pool, p);
+    tlsf_free(tlsf_alloc_pool.load(), p);
   }
 
   //    size
   // TODO: overestiamte: consider roots size and block header size
-  inline size_type max_size() const { 
-    return start_size / sizeof(T);
-  }
+  inline size_type max_size() const { return -1; }
+
 
   //    construction/destruction
   inline void construct(pointer p, const T& t) { new(p) T(t); }
