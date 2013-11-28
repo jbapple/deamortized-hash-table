@@ -1,4 +1,6 @@
 #include <atomic>
+#include <mutex>
 extern "C" { #include "tlsf.h" }
 
-std::atomic<roots *> tlsf_alloc_pool;
+roots * tlsf_alloc_pool;
+std::mutex pool_mutex;

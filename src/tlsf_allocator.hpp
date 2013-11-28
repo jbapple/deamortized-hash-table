@@ -3,12 +3,15 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <mutex>
 
 extern "C" {
 #include "tlsf.h"
 }
 
-extern std::atomic<roots *> tlsf_alloc_pool;
+extern roots * tlsf_alloc_pool;
+extern std::mutex pool_mutex;
+
 
 // TODO: alignment
 // TODO: thread safety
@@ -31,33 +34,27 @@ struct TlsfAllocator {
   inline TlsfAllocator(TlsfAllocator<U> const&) {}
 
   inline pointer allocate(size_type count) {
-    auto pool = tlsf_alloc_pool.load();
-    if (NULL == pool) {
+    std::lock_guard<std::mutex> lock(pool_mutex);
+    if (NULL == tlsf_alloc_pool) {
       const size_t size = tlsf_padding + count * sizeof(T);
       void * const block = malloc(size);
       if (NULL == block) return nullptr;
-      std::atomic<roots *> new_pool = tlsf_init_from_block(block, size);
-      roots * expected = nullptr;
-      if (tlsf_alloc_pool.compare_exchange_strong(expected, new_pool)) {
-        pool = new_pool;
-      } else {
-        free(block);
-      }
+      tlsf_alloc_pool = tlsf_init_from_block(block, size);
     }
-    pointer ans = reinterpret_cast<pointer>(tlsf_malloc(pool, count * sizeof(T)));
+    pointer ans = reinterpret_cast<pointer>(tlsf_malloc(tlsf_alloc_pool, count * sizeof(T)));
     if (NULL == ans) {
-      const size_t size = tlsf_get_capacity(pool) + count * sizeof(T);
+      const size_t size = tlsf_get_capacity(tlsf_alloc_pool) + count * sizeof(T);
       void * const block = malloc(size);
       if (NULL == block) return nullptr;
-      tlsf_add_block(pool, block, size);
-      // TODO: lock around mallc and free in TLSF
+      tlsf_add_block(tlsf_alloc_pool, block, size);
     }
-    ans = reinterpret_cast<pointer>(tlsf_malloc(pool, count * sizeof(T)));
+    ans = reinterpret_cast<pointer>(tlsf_malloc(tlsf_alloc_pool, count * sizeof(T)));
     if (NULL == ans) return nullptr;
     return ans;
   }
   inline void deallocate(pointer p, size_type) { 
-    tlsf_free(tlsf_alloc_pool.load(), p);
+    std::lock_guard<std::mutex> lock(pool_mutex);
+    tlsf_free(tlsf_alloc_pool, p);
   }
 
   //    size
