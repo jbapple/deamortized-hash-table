@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <iostream>
+#include <map>
 
 using namespace std;
 
@@ -28,15 +29,16 @@ void callout(const size_t many) {
   */
 }
 
-  enum DIR : char {
-    UP, DOWN
-  };
+enum DIR : char {
+  UP, DOWN
+};
 
 
 template<typename Key,
          typename Hash = std::hash<Key>, 
          typename Equal = std::equal_to<Key>,
-         typename Allocate = TlsfAllocator<Key> >
+         typename Allocate = TlsfAllocator<Key>,
+         typename Insurance = std::map<Key, std::pair<void *, void *>, std::less<Key>, typename Allocate::template rebind<std::pair<const Key, std::pair<void *, void *> > >::other > >
 class LimitedHashSet {
   typedef std::size_t size_t;
 public:
@@ -48,10 +50,8 @@ public:
 
 public:
 
-
   struct Slot {
-    bool occupied;
-    Key key;
+    Insurance keys;
   };
   Hash hasher;
   Equal equaler;
@@ -59,7 +59,10 @@ public:
   A allocator;
   size_t capacity, size;
   Slot * data;
-  size_t progress;
+  size_t init_progress;
+  typedef typename Insurance::iterator iter;
+  iter clear_progress;
+  iter first, last;
   enum ACT : char {
     FILL, USE, CLEAR, INIT
   } state;
@@ -70,7 +73,9 @@ public:
   // TODO: overload for std::swap
   // TODO: copy and move and assignment constructors
   void swap(LimitedHashSet & that) {
-    std::swap(allocator, that.allocator);
+    // hasher and equaler must not differ between copies
+    // same with allocator?
+    //std::swap(allocator, that.allocator);
     std::swap(capacity, that.capacity);
     std::swap(size, that.size);
     std::swap(data, that.data);
@@ -91,7 +96,7 @@ public:
     */
     assert ((NULL != data) or (0 == capacity));
     for(size_t i = 0; i < capacity; ++i) {
-      data[i].occupied = false;
+      allocator.construct(&data[i]);
     }
   }
 
@@ -100,10 +105,11 @@ public:
     case USE:
     case FILL:
       for (size_t i = 0; i < capacity; ++i) {
-        if (data[i].occupied) allocator.destroy(&data[i]);
+        allocator.destroy(&data[i]);
       }
       break;
     case CLEAR:
+      for (void * i = clear_progress; i !=
       while (progress < capacity) {
         if (data[progress].occupied) allocator.destroy(&data[progress]);
         ++progress;
