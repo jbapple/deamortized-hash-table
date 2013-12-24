@@ -19,7 +19,7 @@ struct deamortized_map {
   Cell * insert(const Key&, const Val&);
   size_t size;
 
-  // simpler idead: track the order they came in!
+  // simpler idea: track the order the keys came in!
 
   Cursor {
     Node * node;
