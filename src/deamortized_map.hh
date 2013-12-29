@@ -58,7 +58,7 @@ struct deamortized_map {
     if (key < root->key) {
       ans = insert(key, val, root->left);
       root->left = ans.new_root;
-    } else if (key > root->key) {
+    } else if (root->key < key) {
       ans = insert(key, val, root->right);
       root->right = ans.new_root;
     } else {
@@ -75,9 +75,9 @@ struct deamortized_map {
 
   static Node * find(const Key& key, Node* const root) {
     if (0 == root->level) return NULL;
-    if (key == root->key) return root;
     if (key < root->key) return find(key, root->left);
-    return find(key, root->right);
+    if (root->key < key) return find(key, root->right);
+    return root;
   }
 
   Node *head, *root;

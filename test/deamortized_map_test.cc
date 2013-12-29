@@ -110,7 +110,17 @@ void depth_test() {
   }
 }
 
-void compile_test();
+struct no_default_constructor {
+  int data;
+  no_default_constructor(int data) : data(data) {}
+  bool operator<(const no_default_constructor& that) const { return data < that.data; }
+};
+
+void compile_test() {
+  deamortized_map<no_default_constructor, no_default_constructor> actual;
+  actual.insert(no_default_constructor(1), no_default_constructor(2));
+  actual.find(no_default_constructor(3));
+}
 
 int main() {
   std::srand(time(NULL));
@@ -118,5 +128,6 @@ int main() {
   size_test();
   iterator_test();
   depth_test();
+  compile_test();
 }
 
