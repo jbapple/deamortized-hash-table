@@ -112,7 +112,7 @@ void depth_test() {
 
 struct no_default_constructor {
   int data;
-  no_default_constructor(int data) : data(data) {}
+  explicit no_default_constructor(int data) : data(data) {}
   bool operator<(const no_default_constructor& that) const { return data < that.data; }
 };
 
