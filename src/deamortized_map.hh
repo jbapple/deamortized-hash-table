@@ -91,6 +91,7 @@ struct deamortized_map {
     if (ia.is_new) {
       ia.location->next = head;
       ia.location->prev = NULL;
+      if (head) head->prev = ia.location;
       head = ia.location;
       root = ia.new_root;
       ++size;
