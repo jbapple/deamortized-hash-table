@@ -74,7 +74,42 @@ void iterator_test() {
   }  
 }
 
-void depth_test();
+template<typename Node>
+size_t node_depth(const Node * const root) {
+  if (0 == root->level) return 0;
+  return 1 + std::max(node_depth(root->left), node_depth(root->right));
+}
+
+size_t log2floor(const size_t x) {
+  if (x <= 1) return 0;
+  return 1+log2floor(x/2);
+}
+
+size_t log2ceiling(const size_t x) {
+  if (0 == x) return 0;
+  return 1+log2floor((x+1)/2);
+}
+
+void depth_test() {
+  {
+    deamortized_map<char, bool> actual;
+    for (size_t i = 0; i < 256; ++i) {
+      const char key = std::rand();
+      actual.insert(key, true);
+      //std::cout << node_depth(actual.root) << " <= " << 2*log2ceiling(actual.size) << std::endl;
+      assert (node_depth(actual.root) <= 2*log2ceiling(actual.size));
+    }
+  }
+  {
+    deamortized_map<size_t, bool> actual;
+    for (size_t i = 0; i < 256; ++i) {
+      actual.insert(i, true);
+      //std::cout << node_depth(actual.root) << " <= " << 2*log2ceiling(actual.size) << std::endl;
+      assert (node_depth(actual.root) <= 2*log2ceiling(actual.size));
+    }
+  }
+}
+
 void compile_test();
 
 int main() {
@@ -82,5 +117,6 @@ int main() {
   copy_map_find_test();
   size_test();
   iterator_test();
+  depth_test();
 }
 
