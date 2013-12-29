@@ -55,13 +55,17 @@ struct deamortized_map {
       return ans;
     }
     InsertAns ans;
-    if (key < root->key) ans = insert(key, val, root->left);
-    else if (key < root->key) ans = insert(key, val, root->right);
-    else {
+    if (key < root->key) {
+      ans = insert(key, val, root->left);
+      root->left = ans.new_root;
+    } else if (key > root->key) {
+      ans = insert(key, val, root->right);
+      root->right = ans.new_root;
+    } else {
       ans.is_new = false;
       ans.location = root;
-      ans.new_root = root;
     }
+    ans.new_root = root;
     if (ans.is_new) {
       ans.new_root = skew(ans.new_root);
       ans.new_root = split(ans.new_root);
@@ -69,9 +73,9 @@ struct deamortized_map {
     return ans;
   }
 
-  static Node * find(const Key& key, const Node* const root) {
+  static Node * find(const Key& key, Node* const root) {
     if (0 == root->level) return NULL;
-    if (key <= root->key) return root;
+    if (key == root->key) return root;
     if (key < root->key) return find(key, root->left);
     return find(key, root->right);
   }
@@ -91,13 +95,13 @@ struct deamortized_map {
       root = ia.new_root;
       ++size;
     }
-    return make_pair(ia.is_new, ia.location);
+    return std::make_pair(ia.is_new, ia.location);
   }
 
-  static const Node * bottom() {
+  static Node * bottom() {
     static Node * ans = NULL;
     if (NULL == ans) {
-      ans = malloc(sizeof(Node));
+      ans = reinterpret_cast<Node *>(std::malloc(sizeof(Node)));
       ans->left = ans->right = ans;
       ans->prev = ans->next = NULL;
       ans->level = 0;
