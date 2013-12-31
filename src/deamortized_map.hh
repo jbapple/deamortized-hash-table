@@ -26,10 +26,11 @@ struct deamortized_map {
   std::pair<bool,Node<Key,NodeTracker>*> insert(const Key& key, const Val& val) {
     const auto ia = root->insert(key, NodeTracker(val, NULL, head));
     if (ia.is_new) {
-      if (ia.inserted->next) ia.inserted->next->prev = ia.inserted;
+      if (ia.inserted->val.next) ia.inserted->val.next->val.prev = ia.inserted;
       head = ia.inserted;
+      root = ia.new_root;
     }
-    return make_pair(ia.is_new, ia.inserted);
+    return std::make_pair(ia.is_new, ia.inserted);
   }
 
 };

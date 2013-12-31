@@ -7,7 +7,8 @@
 
 #include "../src/deamortized_map.hh"
 
-void print_node_keys(const typename deamortized_map<char, int>::Node * const root) {
+template<typename T>
+void print_node_keys(const Node<char, T> * const root) {
   if (0 == root->level) return;
   print_node_keys(root->left);
   std::cout << ' ' << static_cast<int>(root->key);
@@ -25,23 +26,24 @@ void copy_map_find_test() {
   for (size_t i = 0; i < 100; ++i) {
     const char key = std::rand();
     const int val = std::rand();
-    //std::cout << "key: " << static_cast<int>(key) << std::endl;
+    std::cout << "key: " << static_cast<int>(key) << std::endl;
     actual.insert(key, val);
     auto j = expected.find(key);
     if (j == expected.end()) expected.insert(std::make_pair(key, val));
-    //print_map_keys(actual);
+    print_map_keys(actual);
     const char tester = std::rand();
-    /*
+    
     std::cout << "tester: " << static_cast<int>(tester)
 	      << std::boolalpha
 	      << '\t' << (actual.find(tester) == NULL)
 	      << '\t' << (expected.find(tester) == expected.end())
 	      << std::endl;
-    */
+    
     assert ((actual.find(tester) == NULL) == (expected.find(tester) == expected.end()));
   }
 }
 
+/*
 void size_test() {
   deamortized_map<char, bool> actual;
   size_t expected = 0;
@@ -52,6 +54,7 @@ void size_test() {
     assert (expected == actual.size);
   }
 }
+*/
 
 template<typename Key, typename Val>
 size_t iterator_length(const deamortized_map<Key,Val>& m) {
@@ -65,6 +68,7 @@ size_t iterator_length(const deamortized_map<Key,Val>& m) {
   return ans;
 }
 
+/*
 void iterator_test() {
   deamortized_map<char, bool> actual;
   for (size_t i = 0; i < 100; ++i) {
@@ -73,6 +77,7 @@ void iterator_test() {
     assert (iterator_length(actual) == actual.size);
   }  
 }
+*/
 
 template<typename Node>
 size_t node_depth(const Node * const root) {
@@ -86,10 +91,10 @@ size_t log2floor(const size_t x) {
 }
 
 size_t log2ceiling(const size_t x) {
-  if (0 == x) return 0;
+  if (x <= 1) return 0;
   return 1+log2floor((x+1)/2);
 }
-
+/*
 void depth_test() {
   {
     deamortized_map<char, bool> actual;
@@ -109,7 +114,7 @@ void depth_test() {
     }
   }
 }
-
+*/
 struct no_default_constructor {
   int data;
   explicit no_default_constructor(int data) : data(data) {}
@@ -125,8 +130,8 @@ void compile_test() {
 int main() {
   std::srand(time(NULL));
   copy_map_find_test();
-  size_test();
-  iterator_test();
-  depth_test();
-  compile_test();
+  //size_test();
+  //iterator_test();
+  //depth_test();
+  //compile_test();
 }

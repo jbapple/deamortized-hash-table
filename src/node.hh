@@ -59,7 +59,6 @@ struct Node {
       ans.new_root = ans.inserted;
       return ans;
     }
-    ans.new_root = this;
     if (k < key) {
       ans = left->insert(k, v);
       left = ans.new_root;
@@ -70,6 +69,7 @@ struct Node {
       ans.is_new = false;
       ans.inserted = this;
     }
+    ans.new_root = this;
     if (ans.is_new) {
       ans.new_root = ans.new_root->skew();
       ans.new_root = ans.new_root->split();
@@ -79,8 +79,8 @@ struct Node {
 
   Node * find(const Key& k) {
     if (0 == level) return NULL;
-    if (k < key) return find(k, left);
-    if (key < k) return find(k, right);
+    if (k < key) return left->find(k);
+    if (key < k) return right->find(k);
     return this;
   }
 };
