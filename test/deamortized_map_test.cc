@@ -134,5 +134,5 @@ int main() {
   //size_test();
   iterator_test();
   depth_test();
-  //compile_test();
+  compile_test();
 }
