@@ -1,16 +1,17 @@
 #include <cstdlib>
 
 // AA trees:
-template<typename Key, typename Val>
-struct Node {
+template<typename Key, typename Val, typename Extra>
+struct Node : Extra {
   Key key;
   Val val;
   Node *left, *right;
   std::size_t level; // for balance
   Node(const Key& key, const Val& val) 
-      : key(key), val(val),
-	left(bottom()), right(bottom()), 
-	level(1) {}
+    : Extra(), 
+      key(key), val(val),
+      left(bottom()), right(bottom()), 
+      level(1) {}
 
   static Node * bottom() {
     static Node * ans = NULL;

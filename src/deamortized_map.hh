@@ -9,24 +9,25 @@ template<typename Key, typename Val>
 struct deamortized_map {
 
   struct NodeTracker {
-    Val val;
-    Node<Key,NodeTracker> *prev, *next;
-    NodeTracker(const Val& val, Node<Key,NodeTracker> *prev, Node<Key,NodeTracker> *next) :
-      val(val), prev(prev), next(next) {}
+    Node<Key,Val,NodeTracker> *prev, *next;
+    NodeTracker(Node<Key,Val,NodeTracker> *prev = NULL, Node<Key,Val,NodeTracker> *next = NULL) :
+      prev(prev), next(next) {}
   };
 
-  Node<Key,NodeTracker> *head, *root;
+  typedef Node<Key,Val,NodeTracker> TreeNode;
+  TreeNode *head, *root;
  
-  deamortized_map() : head(NULL), root(Node<Key,NodeTracker>::bottom()) {}
+  deamortized_map() : head(NULL), root(TreeNode::bottom()) {}
 
-  Node<Key,NodeTracker>* find(const Key& key) const { 
+  TreeNode* find(const Key& key) const { 
     return root->find(key);
   }
 
-  std::pair<bool,Node<Key,NodeTracker>*> insert(const Key& key, const Val& val) {
-    const auto ia = root->insert(key, NodeTracker(val, NULL, head));
+  std::pair<bool,TreeNode*> insert(const Key& key, const Val& val) {
+    const auto ia = root->insert(key, val);
     if (ia.is_new) {
-      if (ia.inserted->val.next) ia.inserted->val.next->val.prev = ia.inserted;
+      ia.inserted->next = head;
+      if (ia.inserted->next) ia.inserted->next->prev = ia.inserted;
       head = ia.inserted;
       root = ia.new_root;
     }

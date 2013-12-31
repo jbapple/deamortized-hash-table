@@ -7,8 +7,8 @@
 
 #include "../src/deamortized_map.hh"
 
-template<typename T>
-void print_node_keys(const Node<char, T> * const root) {
+template<typename T, typename B>
+void print_node_keys(const Node<char, T, B> * const root) {
   if (0 == root->level) return;
   print_node_keys(root->left);
   std::cout << ' ' << static_cast<int>(root->key);
@@ -62,8 +62,8 @@ size_t iterator_length(const deamortized_map<Key,Val>& m) {
   auto* here = m.head;
   while (here) {
     ++ans;
-    if (here->val.next) assert (here->val.next->val.prev == here);
-    here = here->val.next;
+    if (here->next) assert (here->next->prev == here);
+    here = here->next;
   }
   return ans;
 }
