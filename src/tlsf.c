@@ -250,13 +250,24 @@ struct block * block_split_detached(struct block * const b, const size_t n) {
   return next;
 }
 
+void block_init(struct block * const b, const size_t n) {
+  b->left = NULL;
+  b->size = n - sizeof(struct block);
+  b->payload[0] = NULL;
+  b->payload[1] = NULL;
+  block_set_freedom(b, 1);
+  block_set_end(b, 1);
+}
+
 // TODO: what if 0 bytes are requested?
 void * tlsf_malloc(struct roots * const r, const size_t n) {
   if (NULL == r) return NULL;
   struct location l = roots_find_fitting(r, n);
   if (l.root >= big_buckets) {
-    struct block * const b = malloc(sizeof(struct block) + ((n < (1 << 20)) ? (1 << 20) : n));
+    const size_t b_size = sizeof(struct block) + ((n < (1 << 20)) ? (1 << 20) : n);
+    struct block * const b = malloc(b_size);
     if (NULL == b) return NULL;
+    block_init(b, b_size);
     roots_add_block(r, b);
     l = roots_find_fitting(r, n);
     assert (l.root < big_buckets);
@@ -273,14 +284,6 @@ void * tlsf_malloc(struct roots * const r, const size_t n) {
   return b->payload;
 }
 
-void block_init(struct block * const b, const size_t n) {
-  b->left = NULL;
-  b->size = n - sizeof(struct block);
-  b->payload[0] = NULL;
-  b->payload[1] = NULL;
-  block_set_freedom(b, 1);
-  block_set_end(b, 1);
-}
 
 // TODO: multithreading
 

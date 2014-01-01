@@ -8,8 +8,8 @@
 
 #include "../src/deamortized_map.hh"
 
-template<typename T, typename B>
-void print_node_keys(const Node<char, T, B> * const root) {
+template<typename T, typename B, typename A>
+void print_node_keys(const Node<char, T, B, A> * const root) {
   if (0 == root->level) return;
   print_node_keys(root->left);
   std::cout << ' ' << static_cast<int>(root->key);

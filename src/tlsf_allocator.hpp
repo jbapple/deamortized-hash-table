@@ -30,6 +30,8 @@ struct TlsfAllocator {
     typedef TlsfAllocator<U> other;
   };
   
+  TlsfAllocator() {}
+
   template<typename U>
   inline TlsfAllocator(TlsfAllocator<U> const&) {}
 

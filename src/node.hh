@@ -1,8 +1,9 @@
 #include <cstdlib>
 
 // AA trees:
-template<typename Key, typename Val, typename Extra>
+template<typename Key, typename Val, typename Extra, typename Allocator>
 struct Node : Extra {
+  static typename Allocator::template rebind<Node<Key,Val,Extra,Allocator> >::other allocator;
   Key key;
   Val val;
   Node *left, *right;
@@ -16,7 +17,7 @@ struct Node : Extra {
   static Node * bottom() {
     static Node * ans = NULL;
     if (NULL == ans) {
-      ans = reinterpret_cast<Node *>(std::malloc(sizeof(Node)));
+      ans = allocator.allocate(1);
       ans->left = ans->right = ans;
       ans->level = 0;
     }
@@ -56,7 +57,8 @@ struct Node : Extra {
     InsertAns ans;
     if (0 == level) {
       ans.is_new = true;
-      ans.inserted = new Node(k, v);
+      ans.inserted = allocator.allocate(1);
+      allocator.construct(ans.inserted, Node(k, v));
       ans.new_root = ans.inserted;
       return ans;
     }
@@ -85,3 +87,6 @@ struct Node : Extra {
     return this;
   }
 };
+
+template<typename Key, typename Val, typename Extra, typename Allocator>
+typename Allocator::template rebind<Node<Key,Val,Extra,Allocator> >::other Node<Key,Val,Extra,Allocator>::allocator;

@@ -4,17 +4,21 @@
 #include <memory>
 
 #include "node.hh"
+#include "tlsf_allocator.hpp"
 
-template<typename Key, typename Val>
+template<typename Key, typename Val, typename Allocator = TlsfAllocator<char> >
 struct deamortized_map {
 
+  struct NodeTracker;
+
+  typedef Node<Key,Val,NodeTracker,Allocator> TreeNode;
+
   struct NodeTracker {
-    Node<Key,Val,NodeTracker> *prev, *next;
-    NodeTracker(Node<Key,Val,NodeTracker> *prev = NULL, Node<Key,Val,NodeTracker> *next = NULL) :
+    TreeNode *prev, *next;
+    NodeTracker(TreeNode *prev = NULL, TreeNode *next = NULL) :
       prev(prev), next(next) {}
   };
 
-  typedef Node<Key,Val,NodeTracker> TreeNode;
   TreeNode *head, *root;
  
   deamortized_map() : head(NULL), root(TreeNode::bottom()) {}
@@ -32,6 +36,19 @@ struct deamortized_map {
       root = ia.new_root;
     }
     return std::make_pair(ia.is_new, ia.inserted);
+  }
+
+  void dealloc_one() {
+    if (head) {
+      TreeNode* tmp = head->next;
+      TreeNode::allocator.destroy(head);
+      TreeNode::allocator.deallocate(head, 1);
+      head = tmp;
+    }
+  }
+  
+  ~deamortized_map() {
+    while (head) dealloc_one();
   }
 
 };
