@@ -103,26 +103,20 @@ void depth_test() {
     for (size_t i = 0; i < 256; ++i) {
       const char key = std::rand();
       if (actual.insert(key, true).first) ++size;
-      //std::cout << node_depth(actual.root) << " <= 2 * log2ceiling(" << size+1 << ") = " << 2*log2ceiling(size+1) << std::endl;
       assert (node_depth(actual.root) <= std::max(static_cast<size_t>(1),2*log2ceiling(size)));
     }
   }
   {
     deamortized_map<size_t, bool> actual;
-    size_t min_depth_difference = std::numeric_limits<size_t>::max();
-    size_t no_depth_diff_count = 0;
     size_t max_size_no_depth_diff = 0;
     size_t i = 1;
     for (; i <= (1 << 15); ++i) {
       actual.insert(i, true);
-      //std::cout << node_depth(actual.root) << " <= " << 1 + 2*log2ceiling(i) << std::endl;
       const size_t node_depth_here = node_depth(actual.root);
       const size_t expected_max_node_depth = std::max(static_cast<size_t>(1),2*log2ceiling(i));
       assert (node_depth_here <= expected_max_node_depth);
       if (node_depth_here == expected_max_node_depth) max_size_no_depth_diff = i;
-      min_depth_difference = std::min(min_depth_difference, expected_max_node_depth - node_depth_here);
     }
-    // TODO: this only happens at 1?
     assert (max_size_no_depth_diff > i/2);
   }
 }
