@@ -4,7 +4,7 @@
 template<typename Key, typename Val, typename Extra, typename Allocator>
 struct Node : Extra {
   static typename Allocator::template rebind<Node<Key,Val,Extra,Allocator> >::other allocator;
-  Key key;
+  const Key key;
   Val val;
   Node *left, *right;
   std::size_t level; // for balance
