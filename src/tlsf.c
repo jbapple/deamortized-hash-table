@@ -304,7 +304,7 @@ struct roots * tlsf_init_from_block(void * whole, const size_t get) {
       ans->top[i][j] = NULL;
     }
   }
-  block_init(first, get - sizeof(struct roots));
+  block_init(first, sizeof(struct block) * ((get - sizeof(struct roots))/sizeof(struct block)));
   roots_add_block(ans, first);
   return ans;
 }
@@ -319,7 +319,7 @@ void tlsf_add_block(struct roots * r, void * begin, size_t length) {
 const size_t tlsf_padding = sizeof(struct roots) + sizeof(struct block);
 
 /*
-#define max_alloc (word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1))
+
 
 struct roots * tlsf_init_from_malloc(const size_t bsize) {
   if (bsize > max_alloc) return NULL;
