@@ -265,6 +265,9 @@ void * tlsf_malloc(struct roots * const r, const size_t n) {
   struct location l = roots_find_fitting(r, n);
   if (l.root >= big_buckets) {
     const size_t b_size = sizeof(struct block) + ((n < (1 << 20)) ? (1 << 20) : n);
+    /* TODO: how can we clear this when we are done with this
+       allocator? How can we release it back to the OS? We need
+       another piece of information somewhere to help us. */
     struct block * const b = malloc(b_size);
     if (NULL == b) return NULL;
     block_init(b, b_size);

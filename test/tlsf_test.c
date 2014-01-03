@@ -258,7 +258,7 @@ void test_roots() {
     test_roots_sizes(foo, NULL);
     free(b);  
   }
-  for (size_t i = 0; i < 10000; ++i) {
+  for (size_t i = 0; i < 1000; ++i) {
     struct roots * r = NULL;
     size_t many = rword();
     void * b = NULL;
@@ -339,8 +339,17 @@ void test_word_sizes() {
   assert ((((size_t)1) << word_log) == word_bits);
 }
 
+void test_running_out() {
+  void * b = malloc(sizeof(struct roots) + sizeof(struct block) + 16);
+  struct roots * const foo = tlsf_init_from_block(b,sizeof(struct roots) + sizeof(struct block) + 16);
+  for (size_t i = 0; i < 15; ++i) {
+    const void * const dummy = tlsf_malloc(foo, 1 << i);
+  }
+  free(b);
+}
 
 int main() {
+  test_running_out();
   test_word_sizes();
   test_place();
   test_roots();
