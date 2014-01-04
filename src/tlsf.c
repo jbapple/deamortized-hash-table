@@ -27,19 +27,25 @@ struct block {
 
 #define big_buckets (word_bits - 2*word_log + 3)
 
+struct superblock {
+  struct superblock * next;
+  size_t size;
+  char payload[]; // todo: use  doubleword (twice size_t) size here to help alignment calculations
+};
+
 struct roots {
   // TODO: better names than coarse and fine?
   // TODO: lock for multi-threading
   // TODO: make debug code go away when compiled with DNDEBUG
   // TODO: be able to add more memory later
   // TODO: move left counter into previous free block in case sizes support it 
-  size_t capacity;
+  void * (*allocate)(size_t);
+  void (*deallocate)(void *, size_t);
+  struct superblock * head;
   size_t coarse;
   size_t fine[big_buckets];
   struct block * top[big_buckets][word_bits];
 };
-
-size_t tlsf_get_capacity(struct roots * r) { return r->capacity; }
 
 int block_get_end(const struct block * const x) {
   return x->size & ((size_t)1);
@@ -264,12 +270,19 @@ void * tlsf_malloc(struct roots * const r, const size_t n) {
   if (NULL == r) return NULL;
   struct location l = roots_find_fitting(r, n);
   if (l.root >= big_buckets) {
-    const size_t b_size = sizeof(struct block) + ((n < (1 << 20)) ? (1 << 20) : n);
+    const size_t next_size_default = 2 * r->head->size;
+    const size_t padded_rounded_n = sizeof(struct superblock) + sizeof(struct block) * ((n + sizeof(struct block) - 1)/sizeof(struct block));
+    const size_t sb_size = (padded_rounded_n > next_size_default) ? padded_rounded_n : next_size_default;
     /* TODO: how can we clear this when we are done with this
        allocator? How can we release it back to the OS? We need
        another piece of information somewhere to help us. */
-    struct block * const b = malloc(b_size);
-    if (NULL == b) return NULL;
+    struct superblock * const sb = r->allocate(sb_size);
+    if (NULL == sb) return NULL;
+    sb->next = r->head;
+    sb->size = sb_size;
+    r->head = sb;
+    struct block * const b = (struct block *)(sb->payload);
+    const size_t b_size = sb->size - sizeof(struct superblock);
     block_init(b, b_size);
     roots_add_block(r, b);
     l = roots_find_fitting(r, n);
@@ -291,13 +304,28 @@ void * tlsf_malloc(struct roots * const r, const size_t n) {
 // TODO: multithreading
 
 // TODO: realloc, calloc
-struct roots * tlsf_init_from_block(void * whole, const size_t get) {
-  if (NULL == whole) return NULL;
-  struct roots * ans = whole;
+
+struct roots * tlsf_create(void * (*allocate)(size_t), void (*deallocate)(void *, size_t)) {
+  size_t alloc_left = 
+    2 * (sizeof(struct superblock) + 
+         sizeof(struct roots) +
+         sizeof(struct block));
+  struct superblock * head = allocate(alloc_left);
+  if (NULL == head) return NULL;
+  head->next = NULL;
+  head->size = alloc_left;
+  alloc_left -= sizeof(struct superblock);
+
+  char * whole = head->payload;
+  struct roots * ans = (struct roots *)whole;
   whole += sizeof(struct roots);
-  struct block * first = whole;
+  alloc_left -= sizeof(struct roots);
+  struct block * first = (struct block *)whole;
   whole += sizeof(struct block);
-  ans->capacity = get;
+  alloc_left -= sizeof(struct block);
+  ans->allocate = allocate;
+  ans->deallocate = deallocate;
+  ans->head = head;
   ans->coarse = 0;
   for (size_t i = 0; i < big_buckets; ++i) {
     ans->fine[i] = 0;
@@ -307,19 +335,18 @@ struct roots * tlsf_init_from_block(void * whole, const size_t get) {
       ans->top[i][j] = NULL;
     }
   }
-  block_init(first, sizeof(struct block) * ((get - sizeof(struct roots))/sizeof(struct block)));
+  block_init(first, sizeof(struct block) * (alloc_left/sizeof(struct block)));
   roots_add_block(ans, first);
   return ans;
 }
 
 void tlsf_add_block(struct roots * r, void * begin, size_t length) {
   if (NULL == r) return;
-  r->capacity += length;
   block_init(begin, length);
   roots_add_block(r, begin);
 }
 
-const size_t tlsf_padding = sizeof(struct roots) + sizeof(struct block);
+//const size_t tlsf_padding = sizeof(struct roots) + sizeof(struct block);
 
 /*
 
@@ -364,4 +391,14 @@ void tlsf_free(struct roots * const r, void * const p) {
 
   roots_add_block(r, b);
   block_set_freedom(b, 1);
+}
+
+void tlsf_destroy(struct roots * r) {
+  void (*deallocate)(void *, size_t) = r->deallocate;
+  struct superblock * next = r->head;
+  while (next) {
+    struct superblock * const now = next;
+    next = now->next;
+    deallocate(now, now->size);
+  }
 }
