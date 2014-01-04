@@ -1,86 +1,103 @@
+#include <cstddef>
+#include <utility>
 #include <cstdlib>
+#include <memory>
 
-template<typename Key, typename Val>
+#include "node.hh"
+#include "deamortized_map.hh"
+#include "tlsf_allocator.hpp"
+
+template<typename Key, typename Val, typename Allocator = TlsfAllocator<char> >
 struct sized_hash_map {
-  sized_hash_map(size_t slot_count) : 
+
+  typedef deamortized_map<Key,std::shared_ptr<Val>,LiveTracker,Allocator> Bucket;
+
+  struct LiveTracker;
+
+  typedef typename Bucket::TreeNode DNode;
+
+  struct LiveTracker {
+    DNode *live_prev, *live_next;
+    LiveTracker(DNode *live_prev = NULL, DNode *live_next = NULL) :
+      live_prev(live_prev), live_next(live_next) {}
+  };
+
+  DNode *live_head;
+  Bucket *data;
+  size_t slot_count;
+  size_t node_count;
+  size_t tombstone_count;
+  size_t initialized;
+
+  static typename Allocator::template rebind<Bucket>::other allocator;
+  //static typename Allocator::template rebind<DNode>::other node_allocator;
+
+  sized_hash_map(const size_t slot_count) 
+  : live_head(NULL),
+    data(allocator.allocate(slot_count)),
     slot_count(slot_count), 
-    cell_count(0),
+    node_count(0),
     tombstone_count(0),
-    initialized(0),
-    head(NULL),
-    slots(std::malloc(slot_count * sizeof(Slot *)))
+    initialized(0)
   {}
 
+  void initialize_one() {
+    assert (initialized < slot_count);
+    allocator.construct(&(data[initialized]), Bucket());
+    ++initialized;
+  }
+
+  void deinitialize_one() {
+    assert (initialized > 0);
+    if (data[initialized-1].head) {
+      data[initialized-1].dealloc_one();
+    } else {
+      allocator.destroy(&data[initialized-1]);
+      --initialized;
+    }
+  }
+
   void resize(size_t new_slot_count) {
-    std::free(slots);
+    assert (0 == initialized);
+    allocator.deallocate(data, slot_count);
     new (this) sized_hash_map(new_slot_count);
   }
 
   ~sized_hash_map() {
-    deinitialize(1);
-    std::free(slots);
+    while (initialized > 0) deinitialize_one();
+    allocator.deallocate(data, slot_count);
   }
-
-  initialize(size_t time_left) {
-    const size_t todo = (slot_count + (time_left - 1))/time_left;
-    for (size_t i = 0; i < todo and initialized < slot_count; ++i) {
-      new (slots + initialized) Slot();
-      ++initialized;
-    }
-  }
-  deinitialize(size_t time_left) {
-    const size_t todo = (slot_count + cell_count + (time_left - 1))/time_left;
-    for (size_t i = 0; i < todo and initialized >= 0; ++i) {
-      if (slots[initialized].bucket.head) {
-	Cell * const new_head = slots[initialized].bucket.head->next;
-	delete slots[initialized].bucket.head;
-	slots[initialized].bucket.head = new_head;
-      } else {
-	//slots[initialized].bucket.~Bucket();
-	--initialized;
-      }
-    }
-  }
-
-  size_t slot_count;
-  size_t cell_count;
-  size_t tombstone_count;
-  signed long initialized;
-  Slot *head;
-  typedef deamortized_map<Key, std::shared_ptr<Val> > Bucket;
-  struct Slot {
-    Bucket bucket;
-    Slot *prev, *next;
-  };
-  typedef typename Bucket::Cell Cell;
-  Slot * slots;
-
-  Cell * find(const Key & k) const {
+  
+  DNode * find(const Key & k) const {
     return slots[hash(k) & (slot_count - 1)].find(k);
   }
 
-  void weak_delete(Cell * c) {
-    if (not c->val) return;
+  bool erase(DNode * c) {
+    if (not c or not c->val) return false;
     ++tombstone_count;
     c->val.reset();
-    c->prev = c->prev ? c->prev->prev : NULL;
-    c->next = c->next ? c->next->next : NULL;
-    if (c->prev == c->next) {
-      slots[hash(c->key)].prev = slots[hash(c->key)].prev ? slots[hash(c->key)].prev->prev : NULL;
-      slots[hash(c->key)].next = slots[hash(c->key)].next ? slots[hash(c->key)].next->next : NULL;
-    }
+    if (live_head == c) live_head = c->live_next;
+    if (c->live_prev) c->live_prev->live_next = c->live_next;
+    if (c->live_next) c->live_next->live_prev = c->live_prev;
+    return true;
   }
 
-  std::pair<bool, Cell *> weak_insert(const Key& k, const Val& v) {
+  std::pair<bool, DNode *> insert(const Key& k, const Val& v) {
     const auto slot = slots[hash(k) & (slot_count - 1)];
     const auto ans = slot.bucket.insert(k, std::make_shared<Val>(v));
+    bool link = false;
     if (ans.first) {
-      ++cell_count;
-      
-      return there;
-    } else {
-      return slots[hash(k) & (capacity-1)].insert(k, shared_ptr<Val>(new Val(v)));
+      ++node_count;
+      link = true;
+    } else if (not ans.second->val) {
+      --tombstone_count;
+      link = true;
     }
+    if (link) {
+      ans.second->live_next = live_head;
+      live_head = ans.second;
+    }
+    return ans;
   }
 };
 

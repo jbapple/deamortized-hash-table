@@ -6,14 +6,14 @@
 #include "node.hh"
 #include "tlsf_allocator.hpp"
 
-template<typename Key, typename Val, typename Allocator = TlsfAllocator<char> >
+template<typename Key, typename Val, typename Extra, typename Allocator = TlsfAllocator<char> >
 struct deamortized_map {
 
   struct NodeTracker;
 
   typedef Node<Key,Val,NodeTracker,Allocator> TreeNode;
 
-  struct NodeTracker {
+  struct NodeTracker : Extra {
     TreeNode *prev, *next;
     NodeTracker(TreeNode *prev = NULL, TreeNode *next = NULL) :
       prev(prev), next(next) {}
@@ -39,6 +39,7 @@ struct deamortized_map {
   }
 
   void dealloc_one() {
+    root = NULL;
     if (head) {
       TreeNode* tmp = head->next;
       TreeNode::allocator.destroy(head);
