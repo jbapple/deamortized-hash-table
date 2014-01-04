@@ -2,17 +2,22 @@
 #include <utility>
 #include <cstdlib>
 #include <memory>
+#include <functional>
 
 #include "node.hh"
 #include "deamortized_map.hh"
 #include "tlsf_allocator.hpp"
 
-template<typename Key, typename Val, typename Allocator = TlsfAllocator<char> >
+// TODO: use TlsfAllocator for shared_ptrs
+
+template<typename Key, typename Val, typename Hasher = std::hash<Key>, typename Allocator = TlsfAllocator<char> >
 struct sized_hash_map {
 
-  typedef deamortized_map<Key,std::shared_ptr<Val>,LiveTracker,Allocator> Bucket;
+  static Hasher hash;
 
   struct LiveTracker;
+
+  typedef deamortized_map<Key,std::shared_ptr<Val>,LiveTracker,Allocator> Bucket;
 
   typedef typename Bucket::TreeNode DNode;
 
@@ -39,7 +44,10 @@ struct sized_hash_map {
     node_count(0),
     tombstone_count(0),
     initialized(0)
-  {}
+  {
+    assert (0 == (slot_count & (slot_count - 1)));
+    while (initialized < slot_count) initialize_one();
+  }
 
   void initialize_one() {
     assert (initialized < slot_count);
@@ -69,7 +77,7 @@ struct sized_hash_map {
   }
   
   DNode * find(const Key & k) const {
-    return slots[hash(k) & (slot_count - 1)].find(k);
+    return data[hash(k) & (slot_count - 1)].find(k);
   }
 
   bool erase(DNode * c) {
@@ -83,8 +91,8 @@ struct sized_hash_map {
   }
 
   std::pair<bool, DNode *> insert(const Key& k, const Val& v) {
-    const auto slot = slots[hash(k) & (slot_count - 1)];
-    const auto ans = slot.bucket.insert(k, std::make_shared<Val>(v));
+    auto& slot = data[hash(k) & (slot_count - 1)];
+    const auto ans = slot.insert(k, std::make_shared<Val>(v));
     bool link = false;
     if (ans.first) {
       ++node_count;
@@ -95,9 +103,17 @@ struct sized_hash_map {
     }
     if (link) {
       ans.second->live_next = live_head;
+      if (live_head) live_head->live_prev = ans.second;
       live_head = ans.second;
     }
     return ans;
   }
 };
+
+
+template<typename Key, typename Val, typename Hasher, typename Allocator>
+Hasher sized_hash_map<Key,Val,Hasher,Allocator>::hash;
+
+template<typename Key, typename Val, typename Hasher, typename Allocator>
+typename Allocator::template rebind<typename sized_hash_map<Key,Val,Hasher,Allocator>::Bucket>::other sized_hash_map<Key,Val,Hasher,Allocator>::allocator;
 

@@ -1,3 +1,6 @@
+#ifndef NODE_HH
+#define NODE_HH
+
 #include <cstdlib>
 
 // AA trees:
@@ -90,3 +93,5 @@ struct Node : Extra {
 
 template<typename Key, typename Val, typename Extra, typename Allocator>
 typename Allocator::template rebind<Node<Key,Val,Extra,Allocator> >::other Node<Key,Val,Extra,Allocator>::allocator;
+
+#endif

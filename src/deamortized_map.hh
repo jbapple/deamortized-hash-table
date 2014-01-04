@@ -1,3 +1,6 @@
+#ifndef DEAMORTIZED_MAP
+#define DEAMORTIZED_MAP
+
 #include <cstddef>
 #include <utility>
 #include <cstdlib>
@@ -53,3 +56,5 @@ struct deamortized_map {
   }
 
 };
+
+#endif
