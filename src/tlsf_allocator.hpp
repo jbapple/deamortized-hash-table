@@ -30,6 +30,9 @@ struct TlsfAllocator {
     typedef TlsfAllocator<U> other;
   };
   
+  static void * allocate_fp(size_t n) { return malloc(n); };
+  static void deallocate_fp(void * p, size_t) { free(p); }
+
   TlsfAllocator() {}
 
   template<typename U>
@@ -38,19 +41,9 @@ struct TlsfAllocator {
   inline pointer allocate(size_type count) {
     std::lock_guard<std::mutex> lock(pool_mutex);
     if (NULL == tlsf_alloc_pool) {
-      const size_t size = tlsf_padding + count * sizeof(T);
-      void * const block = malloc(size);
-      if (NULL == block) return nullptr;
-      tlsf_alloc_pool = tlsf_init_from_block(block, size);
+      tlsf_alloc_pool = tlsf_create(allocate_fp, deallocate_fp);
     }
     pointer ans = reinterpret_cast<pointer>(tlsf_malloc(tlsf_alloc_pool, count * sizeof(T)));
-    if (NULL == ans) {
-      const size_t size = tlsf_get_capacity(tlsf_alloc_pool) + count * sizeof(T);
-      void * const block = malloc(size);
-      if (NULL == block) return nullptr;
-      tlsf_add_block(tlsf_alloc_pool, block, size);
-    }
-    ans = reinterpret_cast<pointer>(tlsf_malloc(tlsf_alloc_pool, count * sizeof(T)));
     if (NULL == ans) return nullptr;
     return ans;
   }
