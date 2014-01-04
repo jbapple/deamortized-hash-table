@@ -2,15 +2,6 @@
 
 #define max_alloc (word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1))
 
-void block_garbage_fill(struct block * const b) {
-  /*
-  const size_t start = block_get_freedom(b) * 2;
-  for (size_t i = start; i < block_get_size(b); ++i) {
-    ((char *)b->payload)[i] = 0xff;
-  }
-  */
-}
-
 void test_roots_setbits(const struct roots * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
     if (mask_get_bit(r->coarse, i)) {
