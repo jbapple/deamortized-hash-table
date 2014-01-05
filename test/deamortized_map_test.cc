@@ -141,5 +141,5 @@ int main() {
   iterator_test();
   depth_test();
   compile_test();
-  tlsf_destroy(tlsf_alloc_pool);
+  //tlsf_destroy(tlsf_alloc_pool);
 }

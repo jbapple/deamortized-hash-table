@@ -4,5 +4,7 @@ extern "C" {
 #include "tlsf.h"
 }
 
-roots * tlsf_alloc_pool;
+#include "tlsf_allocator.hpp"
+
+TlsfWrapper tlsf_wrapper;
 std::mutex pool_mutex;

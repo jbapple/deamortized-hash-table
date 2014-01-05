@@ -9,8 +9,21 @@ extern "C" {
 #include "tlsf.h"
 }
 
-extern roots * tlsf_alloc_pool;
+
 extern std::mutex pool_mutex;
+
+struct TlsfWrapper {
+  static void * allocate_fp(size_t n) { return malloc(n); };
+  static void deallocate_fp(void * p, size_t) { free(p); }
+
+  roots * tlsf_alloc_pool;
+  TlsfWrapper() : tlsf_alloc_pool(tlsf_create(allocate_fp, deallocate_fp)) {}
+  ~TlsfWrapper() {
+    tlsf_destroy(tlsf_alloc_pool);
+  }
+};
+
+extern TlsfWrapper tlsf_wrapper;
 
 
 // TODO: alignment
@@ -30,8 +43,6 @@ struct TlsfAllocator {
     typedef TlsfAllocator<U> other;
   };
   
-  static void * allocate_fp(size_t n) { return malloc(n); };
-  static void deallocate_fp(void * p, size_t) { free(p); }
 
   TlsfAllocator() {}
 
@@ -40,16 +51,11 @@ struct TlsfAllocator {
 
   inline pointer allocate(size_type count) {
     std::lock_guard<std::mutex> lock(pool_mutex);
-    if (NULL == tlsf_alloc_pool) {
-      tlsf_alloc_pool = tlsf_create(allocate_fp, deallocate_fp);
-    }
-    pointer ans = reinterpret_cast<pointer>(tlsf_malloc(tlsf_alloc_pool, count * sizeof(T)));
-    if (NULL == ans) return nullptr;
-    return ans;
+    return reinterpret_cast<pointer>(tlsf_malloc(tlsf_wrapper.tlsf_alloc_pool, count * sizeof(T)));
   }
   inline void deallocate(pointer p, size_type) { 
     std::lock_guard<std::mutex> lock(pool_mutex);
-    tlsf_free(tlsf_alloc_pool, p);
+    tlsf_free(tlsf_wrapper.tlsf_alloc_pool, p);
   }
 
   //    size
@@ -61,8 +67,8 @@ struct TlsfAllocator {
   inline void construct(pointer p, const T& t) { new(p) T(t); }
   inline void destroy(pointer p) { p->~T(); }
 
-  inline bool operator==(TlsfAllocator const& that) { return this->pool == that.pool; }
-  inline bool operator!=(TlsfAllocator const& a) { return !operator==(a); }
+  //inline bool operator==(TlsfAllocator const& that) { return this->pool == that.pool; }
+  //inline bool operator!=(TlsfAllocator const& a) { return !operator==(a); }
 };
 
 #endif
