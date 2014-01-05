@@ -8,21 +8,25 @@
 
 #include "../src/deamortized_map.hh"
 
-template<typename T, typename B, typename A>
-void print_node_keys(const Node<char, T, B, A> * const root) {
+struct none {};
+template<typename Key, typename Val> using dmap = deamortized_map<Key, Val, none>;
+
+template<typename Node>
+void print_node_keys(const Node * const root) {
   if (0 == root->level) return;
   print_node_keys(root->left);
   std::cout << ' ' << static_cast<int>(root->key);
   print_node_keys(root->right);
 }
 
-void print_map_keys(const deamortized_map<char, int>& m) {
+template<typename Val>
+void print_map_keys(const dmap<char, Val>& m) {
   print_node_keys(m.root);
   std::cout << std::endl;
 }
 
 void copy_map_find_test() {
-  deamortized_map<char, int> actual;
+  dmap<char, int> actual;
   std::map<char, int> expected;
   for (size_t i = 0; i < 100; ++i) {
     const char key = std::rand();
@@ -44,21 +48,8 @@ void copy_map_find_test() {
   }
 }
 
-/*
-void size_test() {
-  deamortized_map<char, bool> actual;
-  size_t expected = 0;
-  for (size_t i = 0; i < 10000; ++i) {
-    const char key = std::rand();
-    if (NULL == actual.find(key)) ++expected;
-    actual.insert(key, true);
-    assert (expected == actual.size);
-  }
-}
-*/
-
 template<typename Key, typename Val>
-size_t iterator_length(const deamortized_map<Key,Val>& m) {
+size_t iterator_length(const dmap<Key,Val>& m) {
   size_t ans = 0;
   auto* here = m.head;
   while (here) {
@@ -71,7 +62,7 @@ size_t iterator_length(const deamortized_map<Key,Val>& m) {
 
 
 void iterator_test() {
-  deamortized_map<char, bool> actual;
+  dmap<char, bool> actual;
   size_t size = 0;
   for (size_t i = 0; i < 100; ++i) {
     const char key = std::rand();
@@ -98,7 +89,7 @@ size_t log2ceiling(const size_t x) {
 
 void depth_test() {
   {
-    deamortized_map<char, bool> actual;
+    dmap<char, bool> actual;
     size_t size = 0;
     for (size_t i = 0; i < 256; ++i) {
       const char key = std::rand();
@@ -107,9 +98,9 @@ void depth_test() {
     }
   }
   {
-    deamortized_map<size_t, bool> actual;
+    dmap<size_t, bool> actual;
     size_t i = 1;
-    for (; i <= (1 << 15); ++i) {
+    for (; i <= (1 << 10); ++i) {
       actual.insert(i, true);
       const size_t node_depth_here = node_depth(actual.root);
       const size_t expected_max_node_depth = std::max(static_cast<size_t>(1),2*log2ceiling(i));
@@ -117,9 +108,9 @@ void depth_test() {
     }
   }
   {
-    deamortized_map<size_t, bool> actual;
+    dmap<size_t, bool> actual;
     size_t next_maximum = 1;
-    for (size_t i = 1; i <= (1 << 15); ++i) {
+    for (size_t i = 1; i <= (1 << 10); ++i) {
       actual.insert(i, true);
       const size_t node_depth_here = node_depth(actual.root);
       const size_t expected_max_node_depth = std::max(static_cast<size_t>(1),2*log2ceiling(i));
@@ -138,7 +129,7 @@ struct no_default_constructor {
 };
 
 void compile_test() {
-  deamortized_map<no_default_constructor, no_default_constructor> actual;
+  dmap<no_default_constructor, no_default_constructor> actual;
   actual.insert(no_default_constructor(1), no_default_constructor(2));
   actual.find(no_default_constructor(3));
 }
@@ -150,4 +141,5 @@ int main() {
   iterator_test();
   depth_test();
   compile_test();
+  tlsf_destroy(tlsf_alloc_pool);
 }
