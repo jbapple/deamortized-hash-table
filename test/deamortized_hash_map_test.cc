@@ -52,7 +52,7 @@ void print_sm(const std::map<K,V>& x) {
 void resize_test() {
   base_hash_map<size_t, bool, std::hash<size_t>, std::allocator<char> > actual;
   std::map<size_t, bool> expected;
-  const size_t limit = ((size_t)1) << 10;
+  const size_t limit = ((size_t)1) << 12;
   for (size_t i = 0; i < limit; ++i) {
     const size_t key = std::rand() & (limit-1);
     actual.insert(key, true);
@@ -94,20 +94,17 @@ void iterator_test() {
   size_t size = 0;
   for (size_t i = 0; i < 256; ++i) {
     const char key = std::rand();
-    if (87 == static_cast<int>(key)) {
-      std::cout << "problem" << std::endl;
-    }
-    if (actual.insert(key, true).first){
-      ++size;
-      std::cout << "added: " << static_cast<int>(key) << std::endl;
-    }
+    if (actual.insert(key, true).first) ++size;
     if (std::rand() % 2) {
       const char key = std::rand();
-      if (actual.erase(actual.find(key))) {
-        --size;
-        std::cout << "removed: " << static_cast<int>(key) << std::endl;
-      }
+      if (actual.erase(actual.find(key))) --size;
     }
+    assert (iterator_length(actual) == size);
+    assert (size == actual.here->node_count - actual.here->tombstone_count);
+  }  
+  for (size_t i = 0; i < 256 * 16; ++i) {
+    const char key = std::rand();
+    if (actual.erase(actual.find(key))) --size;
     assert (iterator_length(actual) == size);
     assert (size == actual.here->node_count - actual.here->tombstone_count);
   }  

@@ -28,7 +28,7 @@ struct base_hash_map {
     size_t i = 0;
     // TODO: improve this timing
     while (n >> i) ++i;
-    std::cout << "resize: " << n << " to " << (((size_t)1) << i) << std::endl;
+    //std::cout << "resize: " << n << " to " << (((size_t)1) << i) << std::endl;
     return ((size_t)1) << i;
   }
 
@@ -38,8 +38,8 @@ struct base_hash_map {
       assert (here->tombstone_count <= here->node_count/2 + 1);
       assert (here->slot_count*2 + 1>= here->node_count);
       time_left_in_state = std::min((here->node_count/2 + 1 - here->tombstone_count)/4, (1 + here->slot_count * 2 - here->node_count)/2);
-      std::cout << "time_left_in_state: " << time_left_in_state << ", " 
-                << here->slot_count << ' ' << here->node_count << ' ' << here->tombstone_count << std::endl;
+      //std::cout << "time_left_in_state: " << time_left_in_state << ", " 
+      //          << here->slot_count << ' ' << here->node_count << ' ' << here->tombstone_count << std::endl;
       if (0 == time_left_in_state) {
         while (there->initialized > 0) {
           there->deinitialize_one();
