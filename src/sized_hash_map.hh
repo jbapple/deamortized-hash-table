@@ -1,3 +1,6 @@
+#ifndef SIZED_HASH_MAP
+#define SIZED_HASH_MAP
+
 #include <cstddef>
 #include <utility>
 #include <cstdlib>
@@ -90,9 +93,9 @@ struct sized_hash_map {
     return true;
   }
 
-  std::pair<bool, DNode *> insert(const Key& k, const Val& v) {
+  std::pair<bool, DNode *> insert(const Key& k, const std::shared_ptr<Val>& v) {
     auto& slot = data[hash(k) & (slot_count - 1)];
-    const auto ans = slot.insert(k, std::make_shared<Val>(v));
+    const auto ans = slot.insert(k, v);
     bool link = false;
     if (ans.first) {
       ++node_count;
@@ -117,3 +120,4 @@ Hasher sized_hash_map<Key,Val,Hasher,Allocator>::hash;
 template<typename Key, typename Val, typename Hasher, typename Allocator>
 typename Allocator::template rebind<typename sized_hash_map<Key,Val,Hasher,Allocator>::Bucket>::other sized_hash_map<Key,Val,Hasher,Allocator>::allocator;
 
+#endif
