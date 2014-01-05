@@ -118,8 +118,7 @@ struct base_hash_map {
       }
       ans = here->erase(location);
       if (ans and REBUILD == state) {
-        Cell * where = there->find(location->key);
-        if (where) there->erase(where);
+        there->erase(there->find(location->key));
       }
     }
     if (ans) step();

@@ -97,6 +97,7 @@ struct sized_hash_map {
     if (live_head == c) live_head = c->live_next;
     if (c->live_prev) c->live_prev->live_next = c->live_next;
     if (c->live_next) c->live_next->live_prev = c->live_prev;
+    c->live_prev = c->live_next = NULL;
     return true;
   }
 
@@ -111,6 +112,7 @@ struct sized_hash_map {
       --tombstone_count;
       link = true;
       ans.first = true;
+      ans.second->val = v;
     }
     if (link) {
       ans.second->live_next = live_head;

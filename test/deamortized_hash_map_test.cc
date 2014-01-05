@@ -76,31 +76,44 @@ void resize_test() {
 
 }
 
-
-/*
-template<typename Key, typename Val>
-size_t iterator_length(const dmap<Key,Val>& m) {
+template<typename T>
+size_t iterator_length(const T& m) {
   size_t ans = 0;
-  auto* here = m.head;
+  auto* here = m.here->live_head;
   while (here) {
     ++ans;
-    if (here->next) assert (here->next->prev == here);
-    here = here->next;
+    if (here->live_next) assert (here->live_next->live_prev == here);
+    here = here->live_next;
   }
   return ans;
 }
 
 
 void iterator_test() {
-  dmap<char, bool> actual;
+  base_hash_map<char, bool> actual;
   size_t size = 0;
-  for (size_t i = 0; i < 100; ++i) {
+  for (size_t i = 0; i < 256; ++i) {
     const char key = std::rand();
-    if (actual.insert(key, true).first) ++size;
+    if (87 == static_cast<int>(key)) {
+      std::cout << "problem" << std::endl;
+    }
+    if (actual.insert(key, true).first){
+      ++size;
+      std::cout << "added: " << static_cast<int>(key) << std::endl;
+    }
+    if (std::rand() % 2) {
+      const char key = std::rand();
+      if (actual.erase(actual.find(key))) {
+        --size;
+        std::cout << "removed: " << static_cast<int>(key) << std::endl;
+      }
+    }
     assert (iterator_length(actual) == size);
+    assert (size == actual.here->node_count - actual.here->tombstone_count);
   }  
 }
 
+/*
 template<typename Node>
 size_t node_depth(const Node * const root) {
   if (0 == root->level) return 0;
@@ -176,12 +189,13 @@ int main() {
   auto seed = time(NULL);
   //seed = 1388903376;
   //seed = 1388904916;
+  //seed = 1388959970;
   std::cout << "seed: " << seed << std::endl;
   std::srand(seed);
   copy_map_find_test();
   resize_test();
   //size_test();
-  //iterator_test();
+  iterator_test();
   //depth_test();
   compile_test();
   //tlsf_destroy(tlsf_alloc_pool);
