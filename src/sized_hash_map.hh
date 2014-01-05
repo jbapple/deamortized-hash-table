@@ -102,7 +102,7 @@ struct sized_hash_map {
 
   std::pair<bool, DNode *> insert(const Key& k, const std::shared_ptr<Val>& v) {
     auto& slot = data[hash(k) & (slot_count - 1)];
-    const auto ans = slot.insert(k, v);
+    auto ans = slot.insert(k, v);
     bool link = false;
     if (ans.first) {
       ++node_count;
@@ -110,6 +110,7 @@ struct sized_hash_map {
     } else if (not ans.second->val) {
       --tombstone_count;
       link = true;
+      ans.first = true;
     }
     if (link) {
       ans.second->live_next = live_head;

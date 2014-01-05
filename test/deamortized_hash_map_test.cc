@@ -52,7 +52,7 @@ void print_sm(const std::map<K,V>& x) {
 void resize_test() {
   base_hash_map<size_t, bool> actual;
   std::map<size_t, bool> expected;
-  const size_t limit = ((size_t)1) << 16;
+  const size_t limit = ((size_t)1) << 9;
   for (size_t i = 0; i < limit; ++i) {
     const size_t key = std::rand() & (limit-1);
     actual.insert(key, true);
@@ -62,7 +62,7 @@ void resize_test() {
   }
   //print_bhm(actual);
   //print_sm(expected);
-  for (size_t i = 0; i < limit; ++i) {
+  for (size_t i = 0; i < 24 * limit; ++i) {
     const size_t key = std::rand() & (limit-1);
     //std::cout << "erasing: " << key << std::endl;
     actual.erase(actual.find(key));
