@@ -85,7 +85,9 @@ struct sized_hash_map {
   }
   
   DNode * find(const Key & k) const {
-    return data[hash(k) & (slot_count - 1)].find(k);
+    DNode * ans = data[hash(k) & (slot_count - 1)].find(k);
+    if (ans and not ans->val) return NULL;
+    return ans;
   }
 
   bool erase(DNode * c) {

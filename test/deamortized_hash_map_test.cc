@@ -31,6 +31,52 @@ void copy_map_find_test() {
   }
 }
 
+template<typename K, typename V>
+void print_bhm(const base_hash_map<K,V>& x) {
+  auto i = x.here->live_head;
+  while (i) {
+    std::cout << i->key << ' ';
+    i = i->live_next;
+  }
+  std::cout << std::endl;
+}
+
+template<typename K, typename V>
+void print_sm(const std::map<K,V>& x) {
+  for(auto i : x) {
+    std::cout << i.first << ' ';
+  }
+  std::cout << std::endl;
+}
+
+void resize_test() {
+  base_hash_map<size_t, bool> actual;
+  std::map<size_t, bool> expected;
+  const size_t limit = ((size_t)1) << 16;
+  for (size_t i = 0; i < limit; ++i) {
+    const size_t key = std::rand() & (limit-1);
+    actual.insert(key, true);
+    expected.insert(std::make_pair(key, true));
+    const size_t tester = std::rand() & (limit-1);
+    assert ((actual.find(tester) == NULL) == (expected.find(tester) == expected.end()));
+  }
+  //print_bhm(actual);
+  //print_sm(expected);
+  for (size_t i = 0; i < limit; ++i) {
+    const size_t key = std::rand() & (limit-1);
+    //std::cout << "erasing: " << key << std::endl;
+    actual.erase(actual.find(key));
+    expected.erase(key);
+    //print_bhm(actual);
+    //print_sm(expected);
+    const size_t tester = std::rand() & (limit-1);
+    //std::cout << "testing: " << tester << std::endl;
+    assert ((actual.find(tester) == NULL) == (expected.find(tester) == expected.end()));
+  }
+
+}
+
+
 /*
 template<typename Key, typename Val>
 size_t iterator_length(const dmap<Key,Val>& m) {
@@ -127,8 +173,13 @@ void compile_test() {
 }
 
 int main() {
-  std::srand(time(NULL));
+  auto seed = time(NULL);
+  //seed = 1388903376;
+  //seed = 1388904916;
+  std::cout << "seed: " << seed << std::endl;
+  std::srand(seed);
   copy_map_find_test();
+  resize_test();
   //size_test();
   //iterator_test();
   //depth_test();

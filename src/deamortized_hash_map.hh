@@ -30,8 +30,8 @@ struct base_hash_map {
   void step() {
     switch (state) {
     case DEINIT: {
-      assert (here->tombstone_count <= here->node_count/2);
-      assert (here->slot_count*2 >= here->node_count);
+      assert (here->tombstone_count <= here->node_count/2 + 1);
+      assert (here->slot_count*2 + 1>= here->node_count);
       time_left_in_state = std::min(here->node_count/2 - here->tombstone_count, here->slot_count * 2 - here->node_count);
       if (0 == time_left_in_state) {
         while (there->initialized > 0) {
