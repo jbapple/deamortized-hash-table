@@ -113,13 +113,18 @@ struct no_default_constructor {
   bool operator<(const no_default_constructor& that) const { return data < that.data; }
 };
 
-/*
+struct ndchash {
+  size_t operator()(const no_default_constructor& x) const {
+    static std::hash<int> hasher;
+    return hasher(x.data);
+  }
+};
+
 void compile_test() {
-  base_hash_map<no_default_constructor, no_default_constructor> actual;
+  base_hash_map<no_default_constructor, no_default_constructor, ndchash> actual;
   actual.insert(no_default_constructor(1), no_default_constructor(2));
   actual.find(no_default_constructor(3));
 }
-*/
 
 int main() {
   std::srand(time(NULL));
@@ -127,6 +132,6 @@ int main() {
   //size_test();
   //iterator_test();
   //depth_test();
-  //compile_test();
+  compile_test();
   //tlsf_destroy(tlsf_alloc_pool);
 }
