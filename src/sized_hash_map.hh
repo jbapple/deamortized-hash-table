@@ -71,7 +71,12 @@ struct sized_hash_map {
   void resize(size_t new_slot_count) {
     assert (0 == initialized);
     allocator.deallocate(data, slot_count);
-    new (this) sized_hash_map(new_slot_count);
+    live_head = NULL;
+    data = allocator.allocate(new_slot_count);
+    slot_count = new_slot_count;
+    node_count = 0;
+    tombstone_count = 0;
+    initialized = 0;
   }
 
   ~sized_hash_map() {
