@@ -50,9 +50,9 @@ void print_sm(const std::map<K,V>& x) {
 }
 
 void resize_test() {
-  base_hash_map<size_t, bool> actual;
+  base_hash_map<size_t, bool, std::hash<size_t>, std::allocator<char> > actual;
   std::map<size_t, bool> expected;
-  const size_t limit = ((size_t)1) << 9;
+  const size_t limit = ((size_t)1) << 10;
   for (size_t i = 0; i < limit; ++i) {
     const size_t key = std::rand() & (limit-1);
     actual.insert(key, true);
@@ -161,7 +161,7 @@ struct no_default_constructor {
 
 struct ndchash {
   size_t operator()(const no_default_constructor& x) const {
-    static std::hash<int> hasher;
+    static const std::hash<int> hasher = std::hash<int>();
     return hasher(x.data);
   }
 };

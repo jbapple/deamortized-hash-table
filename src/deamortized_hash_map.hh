@@ -4,7 +4,9 @@
 
 #include "sized_hash_map.hh"
 
-template<typename Key, typename Val, typename Hasher = std::hash<Key> >
+// TODO: destructor
+
+template<typename Key, typename Val, typename Hasher = std::hash<Key>, typename Allocator = TlsfAllocator<char> >
 struct base_hash_map {
   enum {
     DEINIT, INIT, REBUILD
@@ -13,8 +15,8 @@ struct base_hash_map {
   size_t time_left_in_state;
   size_t work_left_in_state;
 
-  sized_hash_map<Key, Val, Hasher> *here, *there, alpha, bravo;
-  typedef typename sized_hash_map<Key, Val, Hasher>::DNode Cell;
+  sized_hash_map<Key, Val, Hasher, Allocator> *here, *there, alpha, bravo;
+  typedef typename sized_hash_map<Key, Val, Hasher, Allocator>::DNode Cell;
 
   Cell * rebuild_tracker;
 

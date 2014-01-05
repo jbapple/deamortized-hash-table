@@ -18,6 +18,7 @@ struct Node : Extra {
       level(1) {}
 
   static Node * bottom() {
+    // TODO: this is a memory leak, kindof
     static Node * ans = NULL;
     if (NULL == ans) {
       ans = allocator.allocate(1);
