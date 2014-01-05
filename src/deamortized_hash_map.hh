@@ -1,12 +1,13 @@
 #include <memory>
 #include <cassert>
 #include <iostream>
+#include <utility>
 
 #include "sized_hash_map.hh"
 
 // TODO: destructor
 
-template<typename Key, typename Val, typename Hasher = std::hash<Key>, typename Allocator = TlsfAllocator<char> >
+template<typename Key, typename Val, typename Hasher = std::hash<Key>, typename Allocator = TlsfAllocator<char>, typename Less = std::less<Key> >
 struct base_hash_map {
   enum {
     DEINIT, INIT, REBUILD
@@ -15,8 +16,8 @@ struct base_hash_map {
   size_t time_left_in_state;
   size_t work_left_in_state;
 
-  sized_hash_map<Key, Val, Hasher, Allocator> *here, *there, alpha, bravo;
-  typedef typename sized_hash_map<Key, Val, Hasher, Allocator>::DNode Cell;
+  sized_hash_map<Key, Val, Hasher, Allocator, Less> *here, *there, alpha, bravo;
+  typedef typename sized_hash_map<Key, Val, Hasher, Allocator, Less>::DNode Cell;
 
   Cell * rebuild_tracker;
 

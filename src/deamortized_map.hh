@@ -9,12 +9,12 @@
 #include "node.hh"
 #include "tlsf_allocator.hpp"
 
-template<typename Key, typename Val, typename Extra, typename Allocator = TlsfAllocator<char> >
+template<typename Key, typename Val, typename Extra, typename Allocator, typename Less>
 struct deamortized_map {
 
   struct NodeTracker;
 
-  typedef Node<Key,Val,NodeTracker,Allocator> TreeNode;
+  typedef Node<Key,Val,NodeTracker,Allocator,Less> TreeNode;
 
   struct NodeTracker : Extra {
     TreeNode *prev, *next;

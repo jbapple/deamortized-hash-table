@@ -13,14 +13,14 @@
 
 // TODO: use TlsfAllocator for shared_ptrs
 
-template<typename Key, typename Val, typename Hasher = std::hash<Key>, typename Allocator = TlsfAllocator<char> >
+template<typename Key, typename Val, typename Hasher, typename Allocator, typename Less>
 struct sized_hash_map {
 
-  static Hasher hash;
+  const static Hasher hash;
 
   struct LiveTracker;
 
-  typedef deamortized_map<Key,std::shared_ptr<Val>,LiveTracker,Allocator> Bucket;
+  typedef deamortized_map<Key,std::shared_ptr<Val>,LiveTracker,Allocator,Less> Bucket;
 
   typedef typename Bucket::TreeNode DNode;
 
@@ -122,10 +122,10 @@ struct sized_hash_map {
 };
 
 
-template<typename Key, typename Val, typename Hasher, typename Allocator>
-Hasher sized_hash_map<Key,Val,Hasher,Allocator>::hash;
+template<typename Key, typename Val, typename Hasher, typename Allocator, typename Less>
+const Hasher sized_hash_map<Key,Val,Hasher,Allocator,Less>::hash = Hasher();
 
-template<typename Key, typename Val, typename Hasher, typename Allocator>
-typename Allocator::template rebind<typename sized_hash_map<Key,Val,Hasher,Allocator>::Bucket>::other sized_hash_map<Key,Val,Hasher,Allocator>::allocator;
+template<typename Key, typename Val, typename Hasher, typename Allocator, typename Less>
+typename Allocator::template rebind<typename sized_hash_map<Key,Val,Hasher,Allocator,Less>::Bucket>::other sized_hash_map<Key,Val,Hasher,Allocator,Less>::allocator = typename Allocator::template rebind<typename sized_hash_map<Key,Val,Hasher,Allocator,Less>::Bucket>::other();
 
 #endif

@@ -4,9 +4,10 @@
 #include <cstdlib>
 
 // AA trees:
-template<typename Key, typename Val, typename Extra, typename Allocator>
+template<typename Key, typename Val, typename Extra, typename Allocator, typename Less>
 struct Node : Extra {
-  static typename Allocator::template rebind<Node<Key,Val,Extra,Allocator> >::other allocator;
+  static const Less lesser;
+  static typename Allocator::template rebind<Node<Key,Val,Extra,Allocator,Less> >::other allocator;
   const Key key;
   Val val;
   Node *left, *right;
@@ -66,10 +67,10 @@ struct Node : Extra {
       ans.new_root = ans.inserted;
       return ans;
     }
-    if (k < key) {
+    if (lesser(k, key)) {
       ans = left->insert(k, v);
       left = ans.new_root;
-    } else if (key < k) {
+    } else if (lesser(key, k)) {
       ans = right->insert(k, v);
       right = ans.new_root;
     } else {
@@ -86,13 +87,16 @@ struct Node : Extra {
 
   Node * find(const Key& k) {
     if (0 == level) return NULL;
-    if (k < key) return left->find(k);
-    if (key < k) return right->find(k);
+    if (lesser(k, key)) return left->find(k);
+    if (lesser(key, k)) return right->find(k);
     return this;
   }
 };
 
-template<typename Key, typename Val, typename Extra, typename Allocator>
-typename Allocator::template rebind<Node<Key,Val,Extra,Allocator> >::other Node<Key,Val,Extra,Allocator>::allocator;
+template<typename Key, typename Val, typename Extra, typename Allocator, typename Less>
+typename Allocator::template rebind<Node<Key,Val,Extra,Allocator,Less> >::other Node<Key,Val,Extra,Allocator,Less>::allocator = typename Allocator::template rebind<Node<Key,Val,Extra,Allocator,Less> >::other();
+
+template<typename Key, typename Val, typename Extra, typename Allocator, typename Less>
+const Less Node<Key,Val,Extra,Allocator,Less>::lesser = Less();
 
 #endif

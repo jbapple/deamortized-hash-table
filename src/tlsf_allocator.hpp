@@ -49,11 +49,11 @@ struct TlsfAllocator {
   template<typename U>
   inline TlsfAllocator(TlsfAllocator<U> const&) {}
 
-  inline pointer allocate(size_type count) {
+  inline pointer allocate(size_type count) const {
     std::lock_guard<std::mutex> lock(pool_mutex);
     return reinterpret_cast<pointer>(tlsf_malloc(tlsf_wrapper.tlsf_alloc_pool, count * sizeof(T)));
   }
-  inline void deallocate(pointer p, size_type) { 
+  inline void deallocate(pointer p, size_type) const { 
     std::lock_guard<std::mutex> lock(pool_mutex);
     tlsf_free(tlsf_wrapper.tlsf_alloc_pool, p);
   }
@@ -64,8 +64,8 @@ struct TlsfAllocator {
 
 
   //    construction/destruction
-  inline void construct(pointer p, const T& t) { new(p) T(t); }
-  inline void destroy(pointer p) { p->~T(); }
+  inline void construct(pointer p, const T& t) const { new(p) T(t); }
+  inline void destroy(pointer p) const { p->~T(); }
 
   //inline bool operator==(TlsfAllocator const& that) { return this->pool == that.pool; }
   //inline bool operator!=(TlsfAllocator const& a) { return !operator==(a); }
