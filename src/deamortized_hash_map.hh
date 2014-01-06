@@ -5,8 +5,6 @@
 
 #include "sized_hash_map.hh"
 
-// TODO: destructor
-
 template<typename Key, typename Val, typename Hasher = std::hash<Key>, typename Allocator = TlsfAllocator<char>, typename Less = std::less<Key> >
 struct base_hash_map {
   enum {
@@ -126,7 +124,7 @@ struct base_hash_map {
   }
 
   std::pair<bool,Cell*> insert(const Key& k, const Val & v) {
-    auto val = std::make_shared<Val>(v);
+    auto val = std::allocate_shared<Val>(Allocator(), v);
     auto ans = here->insert(k, val);
     if (ans.first and REBUILD == state) {
       there->insert(k, val);

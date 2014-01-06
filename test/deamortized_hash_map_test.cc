@@ -50,7 +50,7 @@ void print_sm(const std::map<K,V>& x) {
 }
 
 void resize_test() {
-  base_hash_map<size_t, bool, std::hash<size_t>, std::allocator<char> > actual;
+  base_hash_map<size_t, bool, std::hash<size_t>, TlsfAllocator<char> > actual;
   std::map<size_t, bool> expected;
   const size_t limit = ((size_t)1) << 12;
   for (size_t i = 0; i < limit; ++i) {
