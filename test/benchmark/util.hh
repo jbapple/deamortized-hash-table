@@ -16,10 +16,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+/*
 extern "C" {
 #include <papi.h>
 }
-
+*/
 using std::vector;
 using std::pair;
 using std::unordered_map;
@@ -43,6 +44,7 @@ float float_percentiles(const vector<float>& data, const vector<double>& tiers);
 // link with -lrt.
 size_t get_time();
 
+/*
 template<void (*f)(const size_t)> 
 vector<pair<size_t, float > > 
 median_papi(const size_t limit, 
@@ -80,7 +82,7 @@ median_papi(const size_t limit,
   sort(ans.begin(), ans.end());
   return ans;
 }
-
+*/
 
 template<void (*f)(const size_t)> 
 vector<pair<size_t, vector<size_t> > > 

@@ -1,200 +1,104 @@
+#include "tlsf_allocator.hpp"
+#include "deamortized_hash_map.hh"
+
 #include "util.hh"
 
 #include <unordered_map>
 #include <unordered_set>
 #include <set>
 #include <tuple>
-// #include "google-btree/btree_set.h"
+#include <algorithm>
 
 using namespace std;
 
-#include "linear-probing.cc"
-#include "lazy-linear.cc"
-
-struct some {
-  const static int some_size = 2;
-  int x[some_size];
-  static some random() {
-    some ans;
-    for (int i = 0; i < some::some_size; ++i) {
-      ans.x[i] = rand();
-    }
-    return ans;
-  }
-  bool operator==(const some& that) const {
-    for (int i = 0; i < some::some_size; ++i) {
-      if (x[i] != that.x[i]) return false;
-    }
-    return true;
-  }
-  bool operator<(const some& that) const {
-    for (int i = 0; i < some::some_size; ++i) {
-      if (x[i] < that.x[i]) return true;
-      if (x[i] > that.x[i]) return false;
-    }
-    return false;
-  }
-
+struct notint {
+  int x;
+  notint(int x) : x(x) {}
+  bool operator<(const notint& y) const { return x < y.x; }
+  bool operator==(const notint& y) const { return x == y.x; }
 };
 
-size_t hashf(const some & x) {
-  size_t ans = 0;
-  for (int i = 0; i < some::some_size; ++i) {
-    ans ^= x.x[i];
-  }
-  return ans;
-}
-
-size_t hash(const some & x) {
-  return hashf(x);
-}
-
-typedef some sample_type;
-
-struct hash_some {
-  size_t operator()(const some& x) const {
-    return hashf(x);
+struct notint_hash {
+  size_t operator()(const notint& x) const {
+    const static hash<int> y = hash<int>();
+    return y(x.x);
   }
 };
 
-struct dummy {
-  template<typename T>
-  void insert(const T&) {}
-};
-
-size_t flatsub(const size_t& x, const size_t& y) {
-  if (y > x) return 0;
-  return x-y;
-}
-
-template<typename T>
-void test(const unsigned size, const unsigned samples) {
-  unsigned i = 0;
-  //high_priority zz;
-  const size_t multiplier = 1 << 3;
-  std::vector<T> p(samples * multiplier);
-  std::vector<dummy> r(samples * multiplier);
-  //std::vector<size_t> l1(samples,0), l2(samples,0);
-  //std::vector<size_t> s1(samples,0), s2(samples,0);
-  size_t total_sample = 0, total_control = 0, max_sample = 0, max_control = 0;
-  for (unsigned j = 0; j < size; ++j) { 
-    const auto x = some::random();
-    size_t min_sample = ~0, min_control = ~0;
-    size_t sample[samples], control[samples];
-    for (unsigned k = 0; k < samples; ++k) { 
-      __sync_synchronize();
-      const size_t begin = get_time();
-      __sync_synchronize();
-      for (size_t i = 0; i < multiplier; ++i) {
-        p[k*multiplier+i].insert(x);
-      }
-      __sync_synchronize();
-      const size_t mid = get_time();
-      __sync_synchronize();
-      for (size_t i = 0; i < multiplier; ++i) {
-        r[k*multiplier+i].insert(x); 
-      }
-      __sync_synchronize();
-      const size_t last = get_time();
-      __sync_synchronize();
-
-      min_control = std::min(min_control, last-mid);
-      min_sample = std::min(min_sample, mid-begin);
-      sample[k] = mid-begin;
-      control[k] = last-mid;      
-    }
-    
-    const size_t med_control = median(control, samples);
-    const size_t med_sample = median(sample, samples);
-
-    total_sample += med_sample;
-    total_control += med_control;
-    max_sample = std::max(max_sample, med_sample);
-    max_control = std::max(max_control, med_control);
-
- 
-    cout << static_cast<double>(j)/1000.0 << '\t'
-         << static_cast<double>(max_sample)/(2.0 * static_cast<double>(multiplier) * 1000.0) << '\t'
-         << static_cast<double>(med_sample)/(2.0 * static_cast<double>(multiplier) * 1000.0) << '\t'
-         << static_cast<double>(total_sample)/(2.0 * 1000.0 * static_cast<double>(multiplier * (j+1))) << endl;
-  }
-}
-
-template<typename T, typename U>
-void test_lookup(const unsigned size, const unsigned samples) {
-  void * dummy = 0;
-  unsigned i = 0;
-  high_priority zz;
-  T p;
-  U q;
-  decltype(p.find(some::random())) pf;
-  decltype(q.find(some::random())) qf;
-  std::vector<some> x(samples, some::random());
+template<typename S, typename T>
+void test(const size_t max_size, const size_t samples) {
+  size_t sample[samples];
   for (size_t i = 0; i < samples; ++i) {
-    x[i] = some::random();
+    __sync_synchronize();
+    const size_t begin = get_time();
+    __sync_synchronize();
+    T init;
+    __sync_synchronize();
+    const size_t end = get_time();
+    __sync_synchronize();
+    sample[i] = end-begin;
   }
-  std::vector<size_t> l1(samples,0), l2(samples,0);
-  std::vector<size_t> s1(samples,0), s2(samples,0);
-  for (unsigned j = 0; j < size; ++j) { 
-    const auto y = some::random();
-    p.insert(y), q.insert(y);
-    for (unsigned k = 0; k < samples; ++k) { 
-      size_t begin, mid, end;
-      if ((j & 1)) {
-        begin = get_time();
-        pf = p.find(x[k]);
-        mid = get_time(); 
-        qf = q.find(x[k]);
-        end = get_time();
-        s1[k] = mid-begin;
-        s2[k] = end-mid;
-        l1[k] = std::max(l1[k], mid-begin);
-        l2[k] = std::max(l2[k], end-mid);
-      } else {
-        begin = get_time();
-        qf = q.find(x[k]);
-        mid = get_time(); 
-        pf = p.find(x[k]);
-        end = get_time();
-        s2[k] = mid-begin;
-        s1[k] = end-mid;
-        l2[k] = std::max(l2[k], mid-begin);
-        l1[k] = std::max(l1[k], end-mid);
+  std::sort(sample, sample+samples);
+  cout << 0 << '\t' << sample[samples/2] << endl;
+
+  size_t last_size = 0;
+  unordered_set<S, notint_hash> data(max_size);
+  while (data.size() < max_size) {
+    data.insert(rand());
+  }
+
+  for (double size = 1.0; size < max_size; size *= 1.5) {
+    const size_t int_size = size;
+    if (int_size <= last_size) continue;
+    last_size = int_size;
+
+    for (size_t i = 0; i < samples; ++i) {
+      sample[i] = 0;
+    }
+
+    for (size_t j = 0; j < samples; ++j) {    T subject;
+      size_t i = 0;
+      for (const S x : data) {
+        if (i > int_size) break;
+        ++i;
+        //if (subject.here->node_count > int_size) break;
+        __sync_synchronize();
+        const size_t begin = get_time();
+        __sync_synchronize();
+        //subject.insert(x);
+        subject.insert(x, true);
+        __sync_synchronize();
+        const size_t end = get_time();
+        __sync_synchronize();
+        sample[j] = std::max(end-begin, sample[j]);
       }
     }
-    cout << static_cast<double>(j)/1000.0 << '\t'
-         << avg(l1)/1000.0 << '\t'
-         << avg(l2)/1000.0 << '\t' 
-         << avg(s1)/static_cast<double>(1000) << '\t'
-         << avg(s2)/static_cast<double>(1000) << endl;
+    std::sort(sample, sample+samples);
+    cout << int_size << '\t' << sample[samples/2] << endl;
   }
 }
 
-/*
-void print_test(std::vector<std::tuple<unsigned, double, double> > x) {
-  std::unordered_map<unsigned, std::pair<std::vector<double>, std::vector<double> > > collect;    
-  for (const auto& y : x) {
-    collect[get<0>(y)].first.push_back(get<1>(y));
-    collect[get<0>(y)].second.push_back(get<2>(y));
-  }
-  for (const auto& y : collect) {
-    std::cout << y.first << '\t' 
-              << avg(y.second.first) << '\t'
-              << avg(y.second.second) << std::endl;
-  }
-}
-*/
+struct none {};
 
 int main(int argc, char ** argv) {
   srand(0);
+  /*
   unsigned size = 100000;//00;
   unsigned samples = 1 << 3;
   if (4 == argc) {
-    size = read<unsigned>(argv[2]);
-    samples = read<unsigned>(argv[3]);
-  }
+  */
+  size_t size = read<unsigned>(argv[1]);
+  size_t samples = read<unsigned>(argv[2]);
+    /*
+}
   const unsigned which = read<unsigned>(argv[1]);
+  */
+  //test<unordered_set<int, hash<int>, equal_to<int>, TlsfAllocator<int> > >(size, samples);
+  //test<notint, set<notint> >(size, samples);
+  test<notint, base_hash_map<notint,bool, notint_hash> >(size, samples);
+  //test<notint, deamortized_map<notint, bool, none, TlsfAllocator<notint>, std::less<notint> > >(size, samples);
 
+  /*
   typedef hash_map<sample_type> table;
   typedef std::set<sample_type> tree;
   // typedef btree::btree_set<sample_type> btree;
@@ -246,7 +150,7 @@ int main(int argc, char ** argv) {
   //   test<btree>(size, samples);
   //   break;
   }
-
+  */
   /*
   //  print_test(
              test<

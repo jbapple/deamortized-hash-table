@@ -4,18 +4,19 @@
 #include <cstdlib>
 
 // AA trees:
-template<typename Key, typename Val, typename Extra, typename Allocator, typename Less>
-struct Node : Extra {
+template<typename Key, typename Val, typename Allocator, typename Less>
+struct Node {
   static const Less lesser;
-  static typename Allocator::template rebind<Node<Key,Val,Extra,Allocator,Less> >::other allocator;
+  static typename Allocator::template rebind<Node<Key,Val,Allocator,Less> >::other allocator;
   const Key key;
   Val val;
   Node *left, *right;
+  Node *pred, *succ;
   std::size_t level; // for balance
   Node(const Key& key, const Val& val) 
-    : Extra(), 
-      key(key), val(val),
-      left(bottom()), right(bottom()), 
+    : key(key), val(val),
+      left(bottom()), right(bottom()),
+      pred(NULL), succ(NULL),
       level(1) {}
 
   static Node * bottom() {
@@ -58,20 +59,24 @@ struct Node : Extra {
     Node * new_root;
   };
 
-  InsertAns insert(const Key& k, const Val& v) {
+  InsertAns soft_insert(const Key& k, const Val& v, Node * const before = NULL, Node * const after = NULL) {
     InsertAns ans;
     if (0 == level) {
       ans.is_new = true;
       ans.inserted = allocator.allocate(1);
       allocator.construct(ans.inserted, Node(k, v));
       ans.new_root = ans.inserted;
+      ans.inserted->pred = before;
+      ans.inserted->succ = after;
+      if (before) before->succ = ans.inserted;
+      if (after) after->pred = ans.inserted;
       return ans;
     }
     if (lesser(k, key)) {
-      ans = left->insert(k, v);
+      ans = left->soft_insert(k, v, before, this);
       left = ans.new_root;
     } else if (lesser(key, k)) {
-      ans = right->insert(k, v);
+      ans = right->soft_insert(k, v, this, after);
       right = ans.new_root;
     } else {
       ans.is_new = false;
@@ -93,10 +98,10 @@ struct Node : Extra {
   }
 };
 
-template<typename Key, typename Val, typename Extra, typename Allocator, typename Less>
-typename Allocator::template rebind<Node<Key,Val,Extra,Allocator,Less> >::other Node<Key,Val,Extra,Allocator,Less>::allocator = typename Allocator::template rebind<Node<Key,Val,Extra,Allocator,Less> >::other();
+template<typename Key, typename Val, typename Allocator, typename Less>
+typename Allocator::template rebind<Node<Key,Val,Allocator,Less> >::other Node<Key,Val,Allocator,Less>::allocator = typename Allocator::template rebind<Node<Key,Val,Allocator,Less> >::other();
 
-template<typename Key, typename Val, typename Extra, typename Allocator, typename Less>
-const Less Node<Key,Val,Extra,Allocator,Less>::lesser = Less();
+template<typename Key, typename Val, typename Allocator, typename Less>
+const Less Node<Key,Val,Allocator,Less>::lesser = Less();
 
 #endif

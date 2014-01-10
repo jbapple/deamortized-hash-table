@@ -9,7 +9,7 @@
 #include "../src/deamortized_hash_map.hh"
 
 void copy_map_find_test() {
-  base_hash_map<char, int> actual;
+  base_hash_map<char, bool, std::hash<char>, std::allocator<char> > actual;
   std::map<char, int> expected;
   for (size_t i = 0; i < 100; ++i) {
     const char key = std::rand();
@@ -31,8 +31,8 @@ void copy_map_find_test() {
   }
 }
 
-template<typename K, typename V>
-void print_bhm(const base_hash_map<K,V>& x) {
+template<typename T>
+void print_bhm(const T& x) {
   auto i = x.here->live_head;
   while (i) {
     std::cout << i->key << ' ';
@@ -50,7 +50,7 @@ void print_sm(const std::map<K,V>& x) {
 }
 
 void resize_test() {
-  base_hash_map<size_t, bool, std::hash<size_t>, TlsfAllocator<char> > actual;
+  base_hash_map<size_t, bool, std::hash<size_t>, std::allocator<char> > actual;
   std::map<size_t, bool> expected;
   const size_t limit = ((size_t)1) << 12;
   for (size_t i = 0; i < limit; ++i) {
@@ -85,12 +85,13 @@ size_t iterator_length(const T& m) {
     if (here->live_next) assert (here->live_next->live_prev == here);
     here = here->live_next;
   }
+  //std::cout << "iterator_length " << ans << std::endl;
   return ans;
 }
 
 
 void iterator_test() {
-  base_hash_map<char, bool> actual;
+  base_hash_map<char, bool, std::hash<char>, std::allocator<char> > actual;
   size_t size = 0;
   for (size_t i = 0; i < 256; ++i) {
     const char key = std::rand();
@@ -177,7 +178,7 @@ struct ndchash {
 };
 
 void compile_test() {
-  base_hash_map<no_default_constructor, no_default_constructor, ndchash> actual;
+  base_hash_map<no_default_constructor, no_default_constructor, ndchash, std::allocator<no_default_constructor> > actual;
   actual.insert(no_default_constructor(1), no_default_constructor(2));
   actual.find(no_default_constructor(3));
 }

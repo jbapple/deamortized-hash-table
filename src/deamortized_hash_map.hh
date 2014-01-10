@@ -1,3 +1,6 @@
+#ifndef DEAMORTIZED_HASH_MAP_HH
+#define DEAMORTIZED_HASH_MAP_HH
+
 #include <memory>
 #include <cassert>
 #include <iostream>
@@ -134,3 +137,7 @@ struct base_hash_map {
   }
 };
 
+//template<typename Key, typename Val, typename Hasher, typename Allocator, typename Less>
+//typename Allocator::template rebind<Val>::other base_hash_map<Key, Val, Hasher, Allocator, Less>::vallocator;
+
+#endif

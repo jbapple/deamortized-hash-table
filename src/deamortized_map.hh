@@ -9,34 +9,26 @@
 #include "node.hh"
 #include "tlsf_allocator.hpp"
 
-template<typename Key, typename Val, typename Extra, typename Allocator, typename Less>
+template<typename Key, typename Val, typename Allocator, typename Less>
 struct deamortized_map {
 
-  struct NodeTracker;
+  typedef Node<Key, Val, Allocator, Less> TreeNode;
 
-  typedef Node<Key,Val,NodeTracker,Allocator,Less> TreeNode;
+  TreeNode *root, *head;
 
-  struct NodeTracker : Extra {
-    TreeNode *prev, *next;
-    NodeTracker(TreeNode *prev = NULL, TreeNode *next = NULL) :
-      prev(prev), next(next) {}
-  };
-
-  TreeNode *head, *root;
- 
-  deamortized_map() : head(NULL), root(TreeNode::bottom()) {}
+  deamortized_map() : root(TreeNode::bottom()), head(NULL) {}
 
   TreeNode* find(const Key& key) const { 
     return root->find(key);
   }
 
-  std::pair<bool,TreeNode*> insert(const Key& key, const Val& val) {
-    const auto ia = root->insert(key, val);
+  std::pair<bool,TreeNode*> soft_insert(const Key& key, const Val& val) {
+    const auto ia = root->soft_insert(key, val);
     if (ia.is_new) {
-      ia.inserted->next = head;
-      if (ia.inserted->next) ia.inserted->next->prev = ia.inserted;
-      head = ia.inserted;
       root = ia.new_root;
+      if (not head or not ia.inserted->pred) {
+        head = ia.inserted;
+      }
     }
     return std::make_pair(ia.is_new, ia.inserted);
   }
@@ -44,7 +36,7 @@ struct deamortized_map {
   void dealloc_one() {
     root = NULL;
     if (head) {
-      TreeNode* tmp = head->next;
+      TreeNode* tmp = head->succ;
       TreeNode::allocator.destroy(head);
       TreeNode::allocator.deallocate(head, 1);
       head = tmp;

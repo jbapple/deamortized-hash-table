@@ -1,3 +1,4 @@
+#include <set>
 #include <map>
 #include <cstdlib>
 #include <cassert>
@@ -9,7 +10,7 @@
 #include "../src/deamortized_map.hh"
 
 struct none {};
-template<typename Key, typename Val> using dmap = deamortized_map<Key, Val, none>;
+template<typename Key, typename Val> using dmap = deamortized_map<Key, Val, std::allocator<char>, std::less<Key> >;
 
 template<typename Node>
 void print_node_keys(const Node * const root) {
@@ -32,7 +33,7 @@ void copy_map_find_test() {
     const char key = std::rand();
     const int val = std::rand();
     //std::cout << "key: " << static_cast<int>(key) << std::endl;
-    actual.insert(key, val);
+    actual.soft_insert(key, val);
     auto j = expected.find(key);
     if (j == expected.end()) expected.insert(std::make_pair(key, val));
     //print_map_keys(actual);
@@ -54,20 +55,36 @@ size_t iterator_length(const dmap<Key,Val>& m) {
   auto* here = m.head;
   while (here) {
     ++ans;
-    if (here->next) assert (here->next->prev == here);
-    here = here->next;
+    if (here->succ) assert (here->succ->pred == here);
+    here = here->succ;
   }
   return ans;
 }
 
+template<typename A, typename E>
+bool iterator_match(const A& actual, const E& expected) {
+  auto e = expected.begin();
+  auto* a = actual.head;
+  while (a) {
+    if (a->succ) assert (a->succ->pred == a);
+    assert(*e == a->key);
+    assert (e != expected.end());
+    a = a->succ;
+    ++e;
+  }
+  return e == expected.end();
+}
 
 void iterator_test() {
   dmap<char, bool> actual;
+  std::set<char> expected;
   size_t size = 0;
   for (size_t i = 0; i < 100; ++i) {
     const char key = std::rand();
-    if (actual.insert(key, true).first) ++size;
-    assert (iterator_length(actual) == size);
+    if (actual.soft_insert(key, true).first) ++size;
+    expected.insert(key);
+    assert (iterator_match(actual, expected));
+    //assert (iterator_length(actual) == size);
   }  
 }
 
@@ -93,7 +110,7 @@ void depth_test() {
     size_t size = 0;
     for (size_t i = 0; i < 256; ++i) {
       const char key = std::rand();
-      if (actual.insert(key, true).first) ++size;
+      if (actual.soft_insert(key, true).first) ++size;
       assert (node_depth(actual.root) <= std::max(static_cast<size_t>(1),2*log2ceiling(size)));
     }
   }
@@ -101,7 +118,7 @@ void depth_test() {
     dmap<size_t, bool> actual;
     size_t i = 1;
     for (; i <= (1 << 10); ++i) {
-      actual.insert(i, true);
+      actual.soft_insert(i, true);
       const size_t node_depth_here = node_depth(actual.root);
       const size_t expected_max_node_depth = std::max(static_cast<size_t>(1),2*log2ceiling(i));
       assert (node_depth_here <= expected_max_node_depth);
@@ -111,7 +128,7 @@ void depth_test() {
     dmap<size_t, bool> actual;
     size_t next_maximum = 1;
     for (size_t i = 1; i <= (1 << 10); ++i) {
-      actual.insert(i, true);
+      actual.soft_insert(i, true);
       const size_t node_depth_here = node_depth(actual.root);
       const size_t expected_max_node_depth = std::max(static_cast<size_t>(1),2*log2ceiling(i));
       if (i == (static_cast<size_t>(1) << next_maximum) - 2) {
@@ -130,7 +147,7 @@ struct no_default_constructor {
 
 void compile_test() {
   dmap<no_default_constructor, no_default_constructor> actual;
-  actual.insert(no_default_constructor(1), no_default_constructor(2));
+  actual.soft_insert(no_default_constructor(1), no_default_constructor(2));
   actual.find(no_default_constructor(3));
 }
 
