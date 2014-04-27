@@ -57,7 +57,7 @@ void test_max_alloc() {
 */
 
 void test_place_limited() {
-  const size_t t = rword();// & ((1ull << 16)-1);
+  const size_t t = rword();
   if (t > max_alloc) test_place_limited();
   const struct location l = size_get_location(t);
   //printf("%#.16zx %zu %zu\n", t, head, tail);

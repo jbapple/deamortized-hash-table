@@ -220,18 +220,22 @@ struct location {
   uint8_t root, leaf;
 };
 
+// For non-0 x, the floor of the log_2 of x
 int log2floor(const unsigned long long x) {
   return sizeof(unsigned long long)*8 - __builtin_clzll(x) - 1;
 }
 
+// Returns the location in the free trie that best fits the number of
+// bytes of a block size. Every block in that location will be large
+// enough to accomodate an allocation request of size bytes.
 struct location size_get_location(const size_t bytes) {
   struct location ans = {0,0};
 
+  // The number of doubewords in the block we need to allocate.
   const size_t dwords = round_up_to_block_size(bytes) >> (word_log - 2);
   
   ans.root = log2floor(((dwords-1) >> word_log)+1);
   ans.leaf = (dwords + (word_bits - 1) - (1ull << (ans.root + word_log))) >> ans.root;
-  //  ans.leaf = (((dwords + 1 - (1ull << ans.root)) << word_log) + 1) >> ans.root;
 
   return ans;
 }
@@ -248,7 +252,7 @@ int mask_get_bit(const size_t x, const size_t i) {
   return (x >> i) & ((size_t)1);
 }
 
-// block must already be free
+// b must already be free
 void tlsf_arena_set_freelist(struct tlsf_arena * const r, struct location const l, struct block * const b) {
   const struct block * const old = r->top[l.root][l.leaf];
   if (old == b) return;
@@ -358,8 +362,7 @@ void * tlsf_malloc(struct tlsf_arena * const r, const size_t n) {
 
 // TODO: realloc, calloc
 // TODO: what is precondition on the size here?
-struct tlsf_arena * tlsf_create_from_block(char * whole,
-                                           size_t length) {
+struct tlsf_arena * tlsf_create(char * whole, size_t length) {
   struct tlsf_arena * ans = (struct tlsf_arena *)whole;
   whole += sizeof(struct tlsf_arena);
   length -= sizeof(struct tlsf_arena);
@@ -383,9 +386,11 @@ struct tlsf_arena * tlsf_create_from_block(char * whole,
   return ans;
 }
 
+/*
 struct tlsf_arena * tlsf_create_limited(void * begin, size_t length) {
-  return tlsf_create_from_block(begin, length);
+  return tlsf_create(begin, length);
 }
+*/
 
 void tlsf_add_block(struct tlsf_arena * r, void * begin, size_t length) {
   if (NULL == r) return;
