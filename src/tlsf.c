@@ -392,7 +392,7 @@ struct tlsf_arena * tlsf_create_limited(void * begin, size_t length) {
 }
 */
 
-void tlsf_add_block(struct tlsf_arena * r, void * begin, size_t length) {
+void tlsf_augment(struct tlsf_arena * r, void * begin, size_t length) {
   if (NULL == r) return;
   block_init_island(begin, length);
   tlsf_arena_add_block(r, begin);
