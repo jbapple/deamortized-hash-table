@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#if 0
 struct hash_state {
   // less than 2^31-1
   uint32_t data;
@@ -164,4 +165,26 @@ uint64_t hash64string(const __uint128_t a[64], const char * s) {
   } else {
     return (~((uint64_t)0x1)) & hash64long(a, s);
   }
+}
+#endif
+
+struct wfl_hash_params {
+  union {
+    __uint128_t data;
+    uint64_t words[2];
+  } a, b;
+};
+
+struct wfl_hash_params wfl_hash_params_init(uint64_t (*mk_rand)()) {
+  struct wfl_hash_params ans;
+  ans.a.words[0] = mk_rand();
+  ans.a.words[1] = mk_rand();
+  ans.b.words[0] = mk_rand();
+  ans.b.words[1] = mk_rand();
+  return ans;
+}
+
+uint64_t wfl_hash(const uint64_t x, const struct wfl_hash_params * p) {
+  __uint128_t y = x;
+  return (y * (p->a.data) + (p->b.data)) >> 64;
 }

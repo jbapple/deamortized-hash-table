@@ -6,47 +6,47 @@
 #include <time.h>
 #include <math.h>
 
+// The number of bytes in a word
 #define word_bytes sizeof(size_t)
+// The number of bits in a word
 #define word_bits (word_bytes * 8)
-// TODO: mock out actual void * and size_t types
+// The log, base 2, of the number of bits in a word, assuming a word
+// is 64, 32, or 16 bits long
 #define word_log (3 + (18*word_bytes - word_bytes*word_bytes - 8)/24)
 
+// A block of memory in a TLSF arena.
 struct block {
-  /* left is the address of the free block to the left. We steal the
-     last bit to indicate if the block is free.
-  */
+  // left is the address of the block with the next smallest address,
+  // assuming it can be coalesced with this block. Since blocks are
+  // word-aligned and words are at least two bytes, the last bit of
+  // left is always 0. We set it to 1 if this block is free.
   struct block * left;
-  /* The size in bytes, so, since size is always a word multiple, and
-     we assume words are at least two bytes, the last bit is
-     free. This bit is set if and only if the next block (in address
-     space) is NOT owned by the same memory pool. */
-  size_t size; 
-  // first item is next in free list
-  struct block * payload[]; // TODO: alignment
-};
-
-#define big_buckets (word_bits - 2*word_log + 3)
-
-struct superblock {
-  struct superblock * next;
+  // The size of this block in bytes. Since size is always even, the
+  // last bit of size is always 0. We set it to 1 if the block with
+  // the next larger address can be coalesced with this block.
   size_t size;
-  char payload[]; // todo: use  doubleword (twice size_t) size here to help alignment calculations
+
+  // The links to the left and right blocks set up the "coalescing
+  // list", a doubly-linked list of blocks that can be coalesced with
+  // their neighbors in the list.
+
+  // If this block is free, then the payload contains garbage except
+  // for payload[0] and payload[1], which are pointers in the
+  // doubly-linked free list this block is a member of.
+  struct block * payload[]; 
+  // TODO: payload is word aligned, but some users may want it to be
+  // more aligned for some mallocs. This should be configurable at the
+  // time tlsf_malloc is called.
 };
 
-struct roots {
-  // TODO: better names than coarse and fine?
-  // TODO: lock for multi-threading
-  // TODO: make debug code go away when compiled with DNDEBUG
-  // TODO: be able to add more memory later
-  // TODO: move left counter into previous free block in case sizes support it 
-  void * (*allocate)(size_t);
-  void (*deallocate)(void *, size_t);
-  struct superblock * head;
-  size_t coarse;
-  size_t fine[big_buckets];
-  struct block * top[big_buckets][word_bits];
-};
+int is_valid_block_size(const size_t n) {
+  // blocks have positive size:
+  return ((n > 0) &&
+  // blocks are 2*n*word_bytes in size for some positive n
+          (0 == n % (2 * word_bytes)));
+}
 
+// Returns 1 if this block has no right neighbor, 0 otherwise.
 int block_get_end(const struct block * const x) {
   return x->size & ((size_t)1);
 }
@@ -59,16 +59,21 @@ void block_set_end(struct block * const x, int b) {
   }
 }
 
+// Returns the size of this block in bytes.
 size_t block_get_size(const struct block * const x) {
-  return (x->size & ~((size_t)1));
+  const size_t ans = x->size & ~((size_t)1);
+  assert (is_valid_block_size(ans));
+  return ans;
 }
 
 void block_set_size(struct block * const x, const size_t n) {
+  assert (is_valid_block_size(n));
   const int old_end = block_get_end(x);
   x->size = n;
   block_set_end(x, old_end);
 }
 
+// Returns 1 if this block is free, 0 otherwise
 int block_get_freedom(const struct block * const x) {
   return ((size_t)(x->left) & ((size_t)1));
 }
@@ -98,34 +103,139 @@ void block_set_left(struct block * const x, struct block * const y) {
   block_set_freedom(x, freedom);
 }
 
+void coalesce_detached_blocks(struct block * const x, struct block * const y) {
+  assert (y == block_get_right(x));
+
+  struct block * const z = block_get_right(y);
+  if (NULL != z) block_set_left(z, x);
+
+  block_set_size(x, block_get_size(x) + sizeof(struct block) + block_get_size(y));
+  block_set_end(x, block_get_end(y));
+  assert (block_get_right(x) == z);
+  assert (block_get_size(x) > 0);
+}
+
+// takes a number of bytes and returns a number of bytes
+size_t round_up_to_block_size(const size_t n) {
+  size_t ans = 2*word_bytes * (n/(2*word_bytes) + ((n & (2*word_bytes - 1)) > 0));
+  if (ans < 2*word_bytes) ans = 2*word_bytes;
+  assert (is_valid_block_size(ans));
+  return ans;
+}
+
+size_t round_down_to_block_size(const size_t n) {
+  // shift is the logarithm of 2 * word_bytes, which is the quantum
+  // of block sizes.
+  static const size_t shift = word_log - 2;
+  const size_t ans = (n >> shift) << shift;
+  assert (is_valid_block_size(ans));
+  return ans;
+}
+
+// Downsize a block of size b to size n (or a few bytes larger). b
+// must be free but not in any free list. After downsizing, any
+// remainder is turned into a new block and returned.
+struct block * block_split_detached(struct block * const b, const size_t n) {
+  assert (1 == block_get_freedom(b));
+  assert (NULL == b->payload[0]);
+  assert (NULL == b->payload[1]);
+
+  // Round up n to a multiple of 2*word_bytes:
+  const size_t size = round_up_to_block_size(n);
+
+  // Check that we can downsize:
+  assert (block_get_size(b) >= size);
+  if (block_get_size(b) <= size + sizeof(struct block) + 2*word_bytes) {
+    // After downsizing, the remainder will be too small to be a block
+    // on its own, so we keep it with b.
+    return NULL;
+  }
+
+  // Set up the remainder block
+  struct block * const ans = (struct block *)((char *)(b->payload) + size);
+  block_set_left(ans, b);
+  block_set_freedom(ans, 1);
+  block_set_size(ans, block_get_size(b) - size - sizeof(struct block));
+  block_set_end(ans, block_get_end(b));
+  // Link the remainder block in with the coalescing list.
+  struct block * const c = block_get_right(b);
+  if (NULL != c) block_set_left(c, ans);
+  // Set the remainder block in no free list yet
+  ans->payload[0] = NULL;
+  ans->payload[1] = NULL;
+
+  // Reset b to its new size and blace in the coalescing list
+  block_set_size(b, size);
+  block_set_end(b, 0);
+
+  return ans;
+}
+
+// Initialize a free block with no left or right neighbor given the
+// total size the memory points to.
+void block_init_island(struct block * const b, const size_t n) {
+  block_set_left(b, NULL);
+  block_set_freedom(b, 1);
+  block_set_size(b, n - sizeof(struct block));
+  block_set_end(b, 1);
+  // Put block in no freelist
+  b->payload[0] = NULL;
+  b->payload[1] = NULL;
+}
+
+
+// The TLSF free list directory is a trie of height 2. The first level
+// is keyed off the binary logarithm of the size of the blocks, and
+// the second level is keyed off the lower order bits next to the one
+// bit with highest signifigance.
+
+// big_buckets is the degree of the root of that tree.
+#define big_buckets (word_bits - 2*word_log + 2)
+
+struct tlsf_arena {
+  // TODO: better names than coarse and fine?
+  // TODO: lock for multi-threading
+  // TODO: move left counter into previous free block in case sizes support it 
+
+  // coarse's bit i is set iff fine[i] is non-NULL
+  size_t coarse;
+  // fine[i]'s jth bit is set iff top[i][j] is non-NULL
+  size_t fine[big_buckets];
+  // Each non-NULL pointer in top[i][j] points to a free list in which
+  // every block has size between
+  //
+  // (2^i-1) * word_bits + j 2^i + 2
+  //
+  // and
+  //
+  // (2^i-1) * word_bits + j 2^i + 2 + (2^i - 1)
+  //
+  // words
+  struct block * top[big_buckets][word_bits];
+};
+
+
+// A location is a path in the trie of free lists
 struct location {
   uint8_t root, leaf;
 };
 
+int log2floor(const unsigned long long x) {
+  return sizeof(unsigned long long)*8 - __builtin_clzll(x) - 1;
+}
+
 struct location size_get_location(const size_t bytes) {
   struct location ans = {0,0};
-  /* incorrect: might overflow */
-  /* const size_t words = (bytes + sizeof(size_t) - 1)/sizeof(size_t); */
-  const size_t dwords = bytes/(word_bytes) + ((bytes & (word_bytes - 1)) > 0);
 
-  if (dwords <= 2) {
-    return ans;
-  }
+  const size_t dwords = round_up_to_block_size(bytes) >> (word_log - 2);
+  
+  ans.root = log2floor(((dwords-1) >> word_log)+1);
+  ans.leaf = (dwords + (word_bits - 1) - (1ull << (ans.root + word_log))) >> ans.root;
+  //  ans.leaf = (((dwords + 1 - (1ull << ans.root)) << word_log) + 1) >> ans.root;
 
-  // floor log_2
-  const int lg = sizeof(long long)*8 - __builtin_clzll(dwords+word_bits-2) - 1;
-  //printf("words: %d, lg floor: %d\n", words, lg);
-  if (lg <= (int)word_log) {
-    //ans.root = 0; // already
-    ans.leaf = dwords - 2;
-  } else {
-    ans.root = lg - word_log;
-    ans.leaf = (dwords + word_bits - 2 - (((size_t)1) << lg)) >> ans.root;
-  }
   return ans;
 }
 
-// TODO: make this "coarse set" and operate on roots
 void mask_set_bit(size_t * const x, const size_t i, const int b) {
   if (b) {
     *x |= ((size_t)1) << i;
@@ -139,10 +249,12 @@ int mask_get_bit(const size_t x, const size_t i) {
 }
 
 // block must already be free
-void roots_set_freelist(struct roots * const r, struct location const l, struct block * const b) {
+void tlsf_arena_set_freelist(struct tlsf_arena * const r, struct location const l, struct block * const b) {
   const struct block * const old = r->top[l.root][l.leaf];
   if (old == b) return;
   r->top[l.root][l.leaf] = b;
+
+  // Sets the bits in the trie: 
   if (NULL == b) {
     mask_set_bit(&r->fine[l.root], l.leaf, 0);
     if (0 == r->fine[l.root]) {
@@ -157,11 +269,11 @@ void roots_set_freelist(struct roots * const r, struct location const l, struct 
   }
 }
 
-struct block * roots_get_freelist(struct roots * const r, struct location const l) {
+struct block * tlsf_arena_get_freelist(struct tlsf_arena * const r, struct location const l) {
   return r->top[l.root][l.leaf];
 }
 
-void roots_detach_block(struct roots * const r, struct block * const b) {
+void tlsf_arena_detach_block(struct tlsf_arena * const r, struct block * const b) {
   if (b->payload[0]) {
     b->payload[0]->payload[1] = b->payload[1];
     if (b->payload[1]) {
@@ -169,34 +281,26 @@ void roots_detach_block(struct roots * const r, struct block * const b) {
     }
   } else {
     const struct location l = size_get_location(block_get_size(b));
-    roots_set_freelist(r, l, b->payload[1]);
+    tlsf_arena_set_freelist(r, l, b->payload[1]);
     if (b->payload[1]) {
       b->payload[1]->payload[0] = NULL;
     }
   }
 }
 
-void roots_add_block(struct roots * const r, struct block * const b) {
+void tlsf_arena_add_block(struct tlsf_arena * const r, struct block * const b) {
   struct location l = size_get_location(block_get_size(b));
   b->payload[0] = NULL;
-  b->payload[1] = roots_get_freelist(r, l);
+  b->payload[1] = tlsf_arena_get_freelist(r, l);
   if (b->payload[1]) {
     b->payload[1]->payload[0] = b;
   }
-  roots_set_freelist(r, l, b);
+  tlsf_arena_set_freelist(r, l, b);
 }  
 
-void coalesce_detached_blocks(struct block * const x, struct block * const y) {
-  struct block * const z = block_get_right(y);
-  if (NULL != z) block_set_left(z, x);
-  block_set_size(x, block_get_size(x) + sizeof(struct block) + block_get_size(y));
-  block_set_end(x, block_get_end(y));
-  assert (block_get_right(x) == z);
-  assert (block_get_size(x) > 0);
-}
 
 // return l.root >= big_buckets if nothing available
-struct location roots_find_fitting(const struct roots * const r, const size_t n) {
+struct location tlsf_arena_find_fitting(const struct tlsf_arena * const r, const size_t n) {
   static const struct location dummy = {big_buckets, 0};
   struct location ans = { big_buckets, 0 };
   size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
@@ -231,69 +335,20 @@ struct location roots_find_fitting(const struct roots * const r, const size_t n)
   return ans;
 }
 
-struct block * block_split_detached(struct block * const b, const size_t n) {
-  size_t size = word_bytes * (n/word_bytes + ((n & (word_bytes - 1)) > 0));
-  assert (size >= n);
-  if (size < 2*word_bytes) size = 2*word_bytes;
-  if (block_get_size(b) <= size + sizeof(struct block) + 2*word_bytes) {
-    return NULL;
-  }
-
-  struct block * const next = (struct block *)(&b->payload[size/word_bytes]);
-  assert (next == (struct block *)((char *)(b->payload) + size));
-  struct block * const c = block_get_right(b);
-  if (NULL != c) block_set_left(c, next);
-  next->left = b;
-  next->size = block_get_size(b) - size - sizeof(struct block);
-  assert (next->size > 0);
-  block_set_freedom(next, 1);
-  block_set_end(next, block_get_end(b));
-  block_set_size(b, size);
-  block_set_end(b, 0);
-  next->payload[0] = NULL;
-  next->payload[1] = NULL;
-  assert (block_get_size(next) > 0);
-  return next;
-}
-
-void block_init(struct block * const b, const size_t n) {
-  b->left = NULL;
-  b->size = n - sizeof(struct block);
-  b->payload[0] = NULL;
-  b->payload[1] = NULL;
-  block_set_freedom(b, 1);
-  block_set_end(b, 1);
-}
 
 // TODO: what if 0 bytes are requested?
-void * tlsf_malloc(struct roots * const r, const size_t n) {
+void * tlsf_malloc(struct tlsf_arena * const r, const size_t n) {
   if (NULL == r) return NULL;
-  struct location l = roots_find_fitting(r, n);
+  struct location l = tlsf_arena_find_fitting(r, n);
   if (l.root >= big_buckets) {
-    const size_t next_size_default = 2 * r->head->size;
-    const size_t padded_rounded_n = sizeof(struct superblock) + sizeof(struct block) * ((n + sizeof(struct block) - 1)/sizeof(struct block));
-    const size_t sb_size = (padded_rounded_n > next_size_default) ? padded_rounded_n : next_size_default;
-    /* TODO: how can we clear this when we are done with this
-       allocator? How can we release it back to the OS? We need
-       another piece of information somewhere to help us. */
-    struct superblock * const sb = r->allocate(sb_size);
-    if (NULL == sb) return NULL;
-    sb->next = r->head;
-    sb->size = sb_size;
-    r->head = sb;
-    struct block * const b = (struct block *)(sb->payload);
-    const size_t b_size = sb->size - sizeof(struct superblock);
-    block_init(b, b_size);
-    roots_add_block(r, b);
-    l = roots_find_fitting(r, n);
-    assert (l.root < big_buckets);
+    return NULL;
   }
-  struct block * const b = roots_get_freelist(r, l);
-  roots_detach_block(r, b);
+  struct block * const b = tlsf_arena_get_freelist(r, l);
+  tlsf_arena_detach_block(r, b);
   struct block * const c = block_split_detached(b, n);
   block_set_freedom(b, 0);
   if (NULL != c) {
-    roots_add_block(r, c);
+    tlsf_arena_add_block(r, c);
   }
   assert (block_get_size(b) >= n);
   assert(0 == block_get_freedom(b));
@@ -301,31 +356,14 @@ void * tlsf_malloc(struct roots * const r, const size_t n) {
 }
 
 
-// TODO: multithreading
-
 // TODO: realloc, calloc
+// TODO: what is precondition on the size here?
+struct tlsf_arena * tlsf_create_from_block(char * whole,
+                                           size_t length) {
+  struct tlsf_arena * ans = (struct tlsf_arena *)whole;
+  whole += sizeof(struct tlsf_arena);
+  length -= sizeof(struct tlsf_arena);
 
-struct roots * tlsf_create(void * (*allocate)(size_t), void (*deallocate)(void *, size_t)) {
-  size_t alloc_left = 
-    2 * (sizeof(struct superblock) + 
-         sizeof(struct roots) +
-         sizeof(struct block));
-  struct superblock * head = allocate(alloc_left);
-  if (NULL == head) return NULL;
-  head->next = NULL;
-  head->size = alloc_left;
-  alloc_left -= sizeof(struct superblock);
-
-  char * whole = head->payload;
-  struct roots * ans = (struct roots *)whole;
-  whole += sizeof(struct roots);
-  alloc_left -= sizeof(struct roots);
-  struct block * first = (struct block *)whole;
-  whole += sizeof(struct block);
-  alloc_left -= sizeof(struct block);
-  ans->allocate = allocate;
-  ans->deallocate = deallocate;
-  ans->head = head;
   ans->coarse = 0;
   for (size_t i = 0; i < big_buckets; ++i) {
     ans->fine[i] = 0;
@@ -335,27 +373,36 @@ struct roots * tlsf_create(void * (*allocate)(size_t), void (*deallocate)(void *
       ans->top[i][j] = NULL;
     }
   }
-  block_init(first, sizeof(struct block) * (alloc_left/sizeof(struct block)));
-  roots_add_block(ans, first);
+
+  struct block * first = (struct block *)whole;
+  whole += sizeof(struct block);
+  length -= sizeof(struct block);
+
+  block_init_island(first, sizeof(struct block) * (length/sizeof(struct block)));
+  tlsf_arena_add_block(ans, first);
   return ans;
 }
 
-void tlsf_add_block(struct roots * r, void * begin, size_t length) {
-  if (NULL == r) return;
-  block_init(begin, length);
-  roots_add_block(r, begin);
+struct tlsf_arena * tlsf_create_limited(void * begin, size_t length) {
+  return tlsf_create_from_block(begin, length);
 }
 
-//const size_t tlsf_padding = sizeof(struct roots) + sizeof(struct block);
+void tlsf_add_block(struct tlsf_arena * r, void * begin, size_t length) {
+  if (NULL == r) return;
+  block_init_island(begin, length);
+  tlsf_arena_add_block(r, begin);
+}
+
+//const size_t tlsf_padding = sizeof(struct tlsf_arena) + sizeof(struct block);
 
 /*
 
 
-struct roots * tlsf_init_from_malloc(const size_t bsize) {
+struct tlsf_arena * tlsf_init_from_malloc(const size_t bsize) {
   if (bsize > max_alloc) return NULL;
   size_t size = word_bytes * (bsize/word_bytes + ((bsize & (word_bytes - 1)) > 0));
   if (size < 2*word_bytes) size = 2*word_bytes;
-  const size_t get = size + sizeof(struct roots) + sizeof(struct block);
+  const size_t get = size + sizeof(struct tlsf_arena) + sizeof(struct block);
   void * whole = malloc(get);
   return tlsf_init_from_block(whole, get);
 }
@@ -373,32 +420,22 @@ double links in free lists make sense
   
 /* TOCHECK: offsets and alignments */
 
-void tlsf_free(struct roots * const r, void * const p) {
+void tlsf_free(struct tlsf_arena * const r, void * const p) {
   if ((NULL == r) || (NULL == p)) return;
   struct block * b = ((struct block *)p) - 1;
 
   struct block * const left = block_get_left(b);
   struct block * const right = block_get_right(b);
   if ((NULL != left) && block_get_freedom(left)) {
-    roots_detach_block(r, left);
+    tlsf_arena_detach_block(r, left);
     coalesce_detached_blocks(left, b);
     b = left;
   }
   if ((NULL != right) && block_get_freedom(right)) {
-    roots_detach_block(r, right);
+    tlsf_arena_detach_block(r, right);
     coalesce_detached_blocks(b, right);
   }
 
-  roots_add_block(r, b);
+  tlsf_arena_add_block(r, b);
   block_set_freedom(b, 1);
-}
-
-void tlsf_destroy(struct roots * r) {
-  void (*deallocate)(void *, size_t) = r->deallocate;
-  struct superblock * next = r->head;
-  while (next) {
-    struct superblock * const now = next;
-    next = now->next;
-    deallocate(now, now->size);
-  }
 }

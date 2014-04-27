@@ -1,8 +1,17 @@
 #include "tlsf.c"
 
-#define max_alloc (word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1))
+void test_word_sizes() {
+  assert (sizeof(void *) == sizeof(size_t));
+  assert ((word_bits == 16) || (word_bits == 32) || (word_bits == 64));
+  assert ((((size_t)1) << word_log) == word_bits);
+  assert (sizeof(struct block) == 2*sizeof(struct block *));
+}
 
-void test_roots_setbits(const struct roots * const r) {
+//#define max_alloc (word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1))
+//#define max_alloc (word_bytes * (((1ull << (big_buckets-1))-1) + (((word_bits << (big_buckets-1))-1)/word_bits)))
+#define max_alloc (2*word_bytes*(((2*word_bits)<<(big_buckets-1))-word_bits))
+
+void test_roots_setbits(const struct tlsf_arena * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
     if (mask_get_bit(r->coarse, i)) {
       assert (r->fine[i] > 0);
@@ -20,13 +29,10 @@ void test_roots_setbits(const struct roots * const r) {
 }
 
 void place_range(const size_t head, const size_t tail, size_t * const min, size_t * const max) {
-  if (0 == head) {
-    *min = (tail + 2) * word_bytes;
-    *max = *min;
-    return;
-  }
-  *min = word_bytes * ((((((size_t)1) << head) - 1) << word_log) + (((size_t)1) << head) * tail + 2);
-  *max = *min + ((((size_t)1) << head) - 1) * word_bytes;
+  //*min = word_bytes * ((((((size_t)1) << head) - 1) << word_log) + (((size_t)1) << head) * tail + 2);
+  //*max = *min + ((((size_t)1) << head) - 1) * word_bytes;
+  *min = 2*word_bytes*(((word_bits + tail)*(1ull << head))-(word_bits-1)) - (2*word_bytes - 1);
+  *max = *min + (2*word_bytes - 1) + ((1ull << head) - 1)*2*word_bytes;
 }
 
 
@@ -41,15 +47,17 @@ size_t rword() {
 
 
 
+/*
 void test_max_alloc() {
   static const size_t top = max_alloc + word_bits * word_bytes - word_bytes - 1;
   for (size_t i = 0; i < word_bytes; ++i) {
     assert (0xff == ((const unsigned char *)&top)[i]);
   }
 }
+*/
 
 void test_place_limited() {
-  const size_t t = rword();
+  const size_t t = rword();// & ((1ull << 16)-1);
   if (t > max_alloc) test_place_limited();
   const struct location l = size_get_location(t);
   //printf("%#.16zx %zu %zu\n", t, head, tail);
@@ -81,7 +89,7 @@ void test_place_range_contiguous() {
     for (size_t j = 0; j < word_bits; ++j) {
       if (!((i == 0) && (j == 0))) {
 	place_range(i, j, &b, &c);
-	assert (a + word_bytes == b);
+	assert (a + 1 == b);
 	a = c;
       }
     }
@@ -129,7 +137,7 @@ void test_place() {
   //seed = 1388859547;
   printf("test_place seed is %ld.\n", seed);
   srand(seed);
-  test_max_alloc();
+  //test_max_alloc();
   for (unsigned i = 0; i < word_bits * word_bits; ++i) {
     test_place_limited();
     test_get_place_monotonic();
@@ -153,7 +161,7 @@ void test_block_alias(const struct block * const a, const struct block * const b
 }
 
 
-void test_roots_sizes(const struct roots * const r, const struct block * const b) {
+void test_roots_sizes(const struct tlsf_arena * const r, const struct block * const b) {
   for (size_t i = 0; i < big_buckets; ++i) {
     for (size_t j = 0; j < word_bits; ++j) {
       struct block * here = r->top[i][j];
@@ -173,7 +181,7 @@ void test_roots_sizes(const struct roots * const r, const struct block * const b
 
 // returns 0 if we don't know.
 // TODO: we don't actually check 0 return properly in test
-size_t roots_contiguous_managed_size(const struct roots * const r, const struct block * const d) {
+size_t roots_contiguous_managed_size(const struct tlsf_arena * const r, const struct block * const d) {
   if (0 == r->coarse) return 0;
   const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
   const size_t leaf = __builtin_ffsll((unsigned long long)r->fine[root]) - 1;
@@ -203,7 +211,7 @@ size_t roots_contiguous_managed_size(const struct roots * const r, const struct 
 }
 
 
-void test_roots_valid(const struct roots * const x, const struct block * const b) {
+void test_roots_valid(const struct tlsf_arena * const x, const struct block * const b) {
   test_roots_setbits(x);
   test_roots_sizes(x, b);
   roots_contiguous_managed_size(x, b);
@@ -215,7 +223,7 @@ struct block_counts {
 
 
 // returns 0 if we don't know.
-struct block_counts roots_block_counts(const struct roots * const r) {
+struct block_counts roots_block_counts(const struct tlsf_arena * const r) {
   struct block_counts ans = {0,0};
   if (0 == r->coarse) return (struct block_counts){0,~0};
   const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
@@ -250,16 +258,16 @@ void deallocate(void * p, size_t unused) {
   free(p);
 }
 
-
+/*
 void test_roots() {
   {
-    struct roots * const foo = tlsf_create(allocate, deallocate);
+    struct tlsf_arena * const foo = tlsf_create(allocate, deallocate);
     test_roots_setbits(foo);
     test_roots_sizes(foo, NULL);
     tlsf_destroy(foo);  
   }
   for (size_t i = 0; i < 1000; ++i) {
-    struct roots * r = tlsf_create(allocate,deallocate);
+    struct tlsf_arena * r = tlsf_create(allocate,deallocate);
     //const size_t total = roots_contiguous_managed_size(r, NULL);
     size_t used = 0;
     const size_t most = 30;
@@ -318,24 +326,22 @@ void test_roots() {
     tlsf_destroy(r);
   }    
 }
+*/
 
-void test_word_sizes() {
-  assert (sizeof(void *) == sizeof(size_t));
-  assert ((((size_t)1) << word_log) == word_bits);
-}
-
+/*
 void test_running_out() {
   //void * b = malloc(sizeof(struct roots) + sizeof(struct block) + 16);
-  struct roots * const foo = tlsf_create(allocate, deallocate);
+  struct tlsf_arena * const foo = tlsf_create(allocate, deallocate);
   for (size_t i = 0; i < 15; ++i) {
     const void * const dummy = tlsf_malloc(foo, 1 << i);
   }
   tlsf_destroy(foo);
 }
+*/
 
 int main() {
-  test_running_out();
+  //test_running_out();
   test_word_sizes();
   test_place();
-  test_roots();
+  //test_roots();
 }

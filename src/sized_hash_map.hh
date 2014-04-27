@@ -16,36 +16,32 @@
 template<typename Key, typename Val, typename Hasher, typename Allocator, typename Less>
 struct sized_hash_map {
 
+  static typename Allocator::template rebind<Val>::other vallocator;
+
   const static Hasher hash;
 
-  struct LiveTracker;
-
-  typedef deamortized_map<Key,std::shared_ptr<Val>,LiveTracker,Allocator,Less> Bucket;
+  typedef deamortized_map<Key,Val,Allocator,Less> Bucket;
 
   typedef typename Bucket::TreeNode DNode;
 
-  struct LiveTracker {
-    DNode *live_prev, *live_next;
-    LiveTracker(DNode *live_prev = NULL, DNode *live_next = NULL) :
-      live_prev(live_prev), live_next(live_next) {}
-  };
-
-  DNode *live_head;
   Bucket *data;
   size_t slot_count;
   size_t node_count;
-  size_t tombstone_count;
   size_t initialized;
 
+  void swap(sized_hash_map& that) {
+    swap(this->data, that.data);
+    swap(this->slot_count, that.slot_count);
+    swap(this->node_count, that.node_count);
+    swap(this->initialized, that.initialized);
+  }
+
   static typename Allocator::template rebind<Bucket>::other allocator;
-  //static typename Allocator::template rebind<DNode>::other node_allocator;
 
   sized_hash_map(const size_t slot_count) 
-  : live_head(NULL),
-    data(allocator.allocate(slot_count)),
+  : data(allocator.allocate(slot_count)),
     slot_count(slot_count), 
     node_count(0),
-    tombstone_count(0),
     initialized(0)
   {
     assert (0 == (slot_count & (slot_count - 1)));
@@ -71,11 +67,9 @@ struct sized_hash_map {
   void resize(size_t new_slot_count) {
     assert (0 == initialized);
     allocator.deallocate(data, slot_count);
-    live_head = NULL;
     data = allocator.allocate(new_slot_count);
     slot_count = new_slot_count;
     node_count = 0;
-    tombstone_count = 0;
     initialized = 0;
   }
 
@@ -85,40 +79,12 @@ struct sized_hash_map {
   }
   
   DNode * find(const Key & k) const {
-    DNode * ans = data[hash(k) & (slot_count - 1)].find(k);
-    if (ans and not ans->val) return NULL;
-    return ans;
+    return data[hash(k) & (slot_count - 1)].find(k);
   }
 
-  bool erase(DNode * c) {
-    if (not c or not c->val) return false;
-    ++tombstone_count;
-    c->val.reset();
-    if (live_head == c) live_head = c->live_next;
-    if (c->live_prev) c->live_prev->live_next = c->live_next;
-    if (c->live_next) c->live_next->live_prev = c->live_prev;
-    c->live_prev = c->live_next = NULL;
-    return true;
-  }
-
-  std::pair<bool, DNode *> insert(const Key& k, const std::shared_ptr<Val>& v) {
-    auto& slot = data[hash(k) & (slot_count - 1)];
-    auto ans = slot.insert(k, v);
-    bool link = false;
-    if (ans.first) {
-      ++node_count;
-      link = true;
-    } else if (not ans.second->val) {
-      --tombstone_count;
-      link = true;
-      ans.first = true;
-      ans.second->val = v;
-    }
-    if (link) {
-      ans.second->live_next = live_head;
-      if (live_head) live_head->live_prev = ans.second;
-      live_head = ans.second;
-    }
+  std::pair<bool, DNode *> insert(const Key& k, Val* const v) {
+    const auto ans = data[hash(k) & (slot_count - 1)].insert;
+    if (ans.first) ++node_count;
     return ans;
   }
 };
@@ -129,5 +95,13 @@ const Hasher sized_hash_map<Key,Val,Hasher,Allocator,Less>::hash = Hasher();
 
 template<typename Key, typename Val, typename Hasher, typename Allocator, typename Less>
 typename Allocator::template rebind<typename sized_hash_map<Key,Val,Hasher,Allocator,Less>::Bucket>::other sized_hash_map<Key,Val,Hasher,Allocator,Less>::allocator = typename Allocator::template rebind<typename sized_hash_map<Key,Val,Hasher,Allocator,Less>::Bucket>::other();
+
+template<typename Key, typename Val, typename Hasher, typename Allocator, typename Less>
+typename Allocator::template rebind<Val>::other sized_hash_map<Key,Val,Hasher,Allocator,Less>::vallocator = typename Allocator::template rebind<Val>::other();
+
+template<typename Key, typename Val, typename Hasher, typename Allocator, typename Less>
+void swap(sized_hash_map<Key, Val, Hasher, Allocator, Less>& x, sized_hash_map<Key, Val, Hasher, Allocator, Less>& y) {
+  x.swap(y);
+}
 
 #endif

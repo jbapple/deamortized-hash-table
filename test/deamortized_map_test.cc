@@ -48,7 +48,7 @@ void copy_map_find_test() {
     assert ((actual.find(tester) == NULL) == (expected.find(tester) == expected.end()));
   }
 }
-
+/*
 template<typename Key, typename Val>
 size_t iterator_length(const dmap<Key,Val>& m) {
   size_t ans = 0;
@@ -60,6 +60,7 @@ size_t iterator_length(const dmap<Key,Val>& m) {
   }
   return ans;
 }
+*/
 
 template<typename A, typename E>
 bool iterator_match(const A& actual, const E& expected) {
