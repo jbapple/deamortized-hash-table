@@ -1,4 +1,9 @@
-#include "tlsf.c"
+#include <assert.h>
+#include <stdlib.h>
+#include <time.h>
+#include <stdio.h>
+
+#include "tlsf-internals.h"
 
 void test_word_sizes() {
   assert (sizeof(void *) == sizeof(size_t));
