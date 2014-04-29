@@ -340,7 +340,7 @@ void test_roots() {
 
 
 void test_running_out() {
-  const size_t n = sizeof(struct tlsf_arena) + 2*sizeof(struct block);
+  const size_t n = sizeof(struct tlsf_arena) + 2*sizeof(struct block) + (1 << 10);
   void * b = malloc(n);
   struct tlsf_arena * const foo = tlsf_create(b, n);
   for (size_t i = 0; i < 15; ++i) {
@@ -350,7 +350,7 @@ void test_running_out() {
 }
 
 int main() {
-  //test_running_out();
+  test_running_out();
   test_word_sizes();
   test_place();
   //test_roots();

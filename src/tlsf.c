@@ -317,8 +317,10 @@ struct tlsf_arena * tlsf_create(char * whole, size_t length) {
   whole += sizeof(struct block);
   length -= sizeof(struct block);
 
-  block_init_island(first, sizeof(struct block) * (length/sizeof(struct block)));
-  tlsf_arena_add_block(ans, first);
+  if (length > 0) {
+    block_init_island(first, sizeof(struct block) * (length/sizeof(struct block)));
+    tlsf_arena_add_block(ans, first);
+  }
   return ans;
 }
 
