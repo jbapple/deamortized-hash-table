@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "tlsf-internals.h"
 
@@ -265,16 +266,18 @@ void deallocate(void * p, size_t unused) {
 }
 */
 
-/*
 void test_roots() {
+  const size_t n = sizeof(struct tlsf_arena) + 2*sizeof(struct block) + (1 << 20);
   {
-    struct tlsf_arena * const foo = tlsf_create(allocate, deallocate);
+    void * b = malloc(n);
+    struct tlsf_arena * const foo = tlsf_create(b, n);
     test_roots_setbits(foo);
     test_roots_sizes(foo, NULL);
-    tlsf_destroy(foo);  
+    free(b);
   }
   for (size_t i = 0; i < 1000; ++i) {
-    struct tlsf_arena * r = tlsf_create(allocate,deallocate);
+    void * b = malloc(n);
+    struct tlsf_arena * r = tlsf_create(b, n);
     //const size_t total = roots_contiguous_managed_size(r, NULL);
     size_t used = 0;
     const size_t most = 30;
@@ -330,10 +333,10 @@ void test_roots() {
     }
     // TODO: block_count integrated into free and malloc, proper, guarded by NDEBUG
     // TODO: test all is free, here
-    tlsf_destroy(r);
+    free(b);
   }    
 }
-*/
+
 
 
 void test_running_out() {
