@@ -13,8 +13,6 @@ void test_word_sizes() {
   assert (sizeof(struct block) == 2*sizeof(struct block *));
 }
 
-//#define max_alloc (word_bytes * (word_bits * ((((size_t)1) << big_buckets) - 1) + 1))
-//#define max_alloc (word_bytes * (((1ull << (big_buckets-1))-1) + (((word_bits << (big_buckets-1))-1)/word_bits)))
 #define max_alloc (2*word_bytes*(((2*word_bits)<<(big_buckets-1))-word_bits))
 
 void test_roots_setbits(const struct tlsf_arena * const r) {
@@ -35,38 +33,23 @@ void test_roots_setbits(const struct tlsf_arena * const r) {
 }
 
 void place_range(const size_t head, const size_t tail, size_t * const min, size_t * const max) {
-  //*min = word_bytes * ((((((size_t)1) << head) - 1) << word_log) + (((size_t)1) << head) * tail + 2);
-  //*max = *min + ((((size_t)1) << head) - 1) * word_bytes;
   *min = 2*word_bytes*(((word_bits + tail)*(1ull << head))-(word_bits-1)) - (2*word_bytes - 1);
   *max = *min + (2*word_bytes - 1) + ((1ull << head) - 1)*2*word_bytes;
 }
-
 
 size_t rword() {
   size_t ans = 0;
   unsigned char * const bytes = (unsigned char *)&ans;
   for (unsigned i = 0; i < word_bytes; ++i) {
-    bytes[i] = rand() & 0xff;
+    bytes[i] = (rand() >> 10) & 0xff;
   }
   return ans;
 }
-
-
-
-/*
-void test_max_alloc() {
-  static const size_t top = max_alloc + word_bits * word_bytes - word_bytes - 1;
-  for (size_t i = 0; i < word_bytes; ++i) {
-    assert (0xff == ((const unsigned char *)&top)[i]);
-  }
-}
-*/
 
 void test_place_limited() {
   const size_t t = rword();
   if (t > max_alloc) test_place_limited();
   const struct location l = size_get_location(t);
-  //printf("%#.16zx %zu %zu\n", t, head, tail);
   assert (l.root < big_buckets);
   assert (l.leaf < word_bits);
 }
@@ -77,7 +60,6 @@ void test_get_place_monotonic() {
   if ((u > max_alloc) || (v > max_alloc)) test_get_place_monotonic();
   const struct location p = size_get_location(u);
   const struct location q = size_get_location(v);
-  //printf("%#zx\n", u);
   assert (p.root <= q.root);
   if (p.root < q.root) {
     assert (0 == q.leaf);
@@ -113,16 +95,12 @@ void test_place_range_involution(const size_t many) {
       if (delta <= many) {
 	for (size_t k = min; (k <= max) && (k != 0); ++k) {
 	  l = size_get_location(k);
-	  //printf("%zu %zu %zu %zu %zu %zu %zu\n",
-	  //i, j, min, max, k, head, tail);
 	  assert ((l.root == i) && (l.leaf == j));
 	}
       } else {
 	for (size_t k = 0; k < many; ++k) {
 	  const size_t x = min + rword() % delta;
 	  l = size_get_location(x);
-	  //printf("%zu %zu %zu %zu %zu %zu %zu\n",
-	  //i, j, min, max, x, head, tail);
 	  assert ((l.root == i) && (l.leaf == j));
 	}
       }
@@ -133,17 +111,14 @@ void test_place_range_involution(const size_t many) {
 void test_place_maximum() {
   const size_t t = max_alloc;
   const struct location l = size_get_location(t);
-  //printf("%#zx %zu %zu\n", t, head, tail);
   assert (l.root == big_buckets - 1);
   assert (l.leaf == word_bits - 1);
 }
 
 void test_place() {
   time_t seed = time(NULL);
-  //seed = 1388859547;
   printf("test_place seed is %ld.\n", seed);
   srand(seed);
-  //test_max_alloc();
   for (unsigned i = 0; i < word_bits * word_bits; ++i) {
     test_place_limited();
     test_get_place_monotonic();
@@ -154,6 +129,7 @@ void test_place() {
 }
 
 
+// Ensures two blocks do not overlap
 void test_block_alias(const struct block * const a, const struct block * const b) {
   if ((NULL == a) || (NULL == b)) return;
   if (a == b) return;
@@ -167,7 +143,8 @@ void test_block_alias(const struct block * const a, const struct block * const b
 }
 
 
-void test_roots_sizes(const struct tlsf_arena * const r, const struct block * const b) {
+// Ensures that the blocks are in the expected freelists
+void test_roots_sizes(const struct tlsf_arena * const r) {
   for (size_t i = 0; i < big_buckets; ++i) {
     for (size_t j = 0; j < word_bits; ++j) {
       struct block * here = r->top[i][j];
@@ -178,49 +155,52 @@ void test_roots_sizes(const struct tlsf_arena * const r, const struct block * co
         assert (block_get_size(here) >= begin);
         assert (block_get_size(here) <= end);
         assert ((NULL == here->payload[0]) || (here == here->payload[0]->payload[1]));
-        test_block_alias(here, b);
         here = here->payload[1];
       }
     }
   }
 }
 
-// returns 0 if we don't know.
-// TODO: we don't actually check 0 return properly in test
-size_t roots_contiguous_managed_size(const struct tlsf_arena * const r, const struct block * const d) {
-  if (0 == r->coarse) return 0;
+void test_roots_linkage(const struct tlsf_arena * const r) {
+  if (0 == r->coarse) return;
+
+  // get some valid free block:
   const size_t root = __builtin_ffsll((unsigned long long)r->coarse) - 1;
   const size_t leaf = __builtin_ffsll((unsigned long long)r->fine[root]) - 1;
   struct block * b = r->top[root][leaf];
+
+  // any is 1 if the neighbor blocks can be either free or used. It is
+  // 0 if they must be used. No two free blocks can be neighbors.
   int any = 1;
-  size_t ans = 0;
+
   struct block * c = block_get_right(b);
   assert ((NULL == c) || (b == block_get_left(c)));
+
   while (NULL != b) {
-    ans += block_get_size(b) + sizeof(struct block);
+    // if b has a free nieghbor, it can't be free
     assert (any | (0 == block_get_freedom(b)));
     any = 1 - block_get_freedom(b);
+    // b's left neighbor points to b"
     assert ((NULL == block_get_left(b)) || (b == block_get_right(block_get_left(b))));
-    test_block_alias(b, d);
+
     b = block_get_left(b);
   }
   any = 0;
   while (NULL != c) {
-    ans += block_get_size(c) + sizeof(struct block);
+
     assert (any | (0 == block_get_freedom(c)));
     any = 1 - block_get_freedom(c);
     assert ((NULL == block_get_right(c)) || (c == block_get_left(block_get_right(c))));
-    test_block_alias(c, d);
+
     c = block_get_right(c);
   }
-  return ans;
+
 }
 
-
-void test_roots_valid(const struct tlsf_arena * const x, const struct block * const b) {
+void test_roots_valid(const struct tlsf_arena * const x) {
   test_roots_setbits(x);
-  test_roots_sizes(x, b);
-  roots_contiguous_managed_size(x, b);
+  test_roots_sizes(x);
+  test_roots_linkage(x);
 }
 
 struct block_counts {
@@ -272,7 +252,7 @@ void test_roots() {
     void * b = malloc(n);
     struct tlsf_arena * const foo = tlsf_create(b, n);
     test_roots_setbits(foo);
-    test_roots_sizes(foo, NULL);
+    test_roots_sizes(foo);
     free(b);
   }
   for (size_t i = 0; i < 1000; ++i) {
@@ -292,12 +272,12 @@ void test_roots() {
     for (size_t i = 0; i < most; ++i) {
       size_t n = exp(rword() % (size_t)log(most));
       const struct block_counts before_count = roots_block_counts(r);
-      test_roots_valid(r, NULL);
+      test_roots_valid(r);
       tracked[top++] = tlsf_malloc(r, n);
       const struct block_counts after_count = roots_block_counts(r);
       //const size_t actual_total = roots_contiguous_managed_size(r, ((struct block *)tracked[top-1] - 1));
       //assert ((0 == actual_total) || (total == actual_total));
-      test_roots_valid(r, NULL);
+      test_roots_valid(r);
       if (NULL != tracked[top-1]) {
         used += n;
         if (after_count.used_count != ~0ull) {
@@ -318,7 +298,7 @@ void test_roots() {
         assert (post_count.used_count + 1 == after_count.used_count);
         assert (post_count.free_count + 1 - after_count.free_count < 3);
         //assert (roots_contiguous_managed_size(r, NULL) == total);
-        test_roots_valid(r, NULL);
+        test_roots_valid(r);
         if (top > 0) --top;
       }
     }
@@ -329,7 +309,7 @@ void test_roots() {
       assert (after_count.used_count + 1 == before_count.used_count);
       assert (after_count.free_count + 1 - before_count.free_count < 3);
       //assert (roots_contiguous_managed_size(r, NULL) == total);
-      test_roots_valid(r, NULL);
+      test_roots_valid(r);
     }
     // TODO: block_count integrated into free and malloc, proper, guarded by NDEBUG
     // TODO: test all is free, here
