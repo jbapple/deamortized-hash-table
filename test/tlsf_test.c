@@ -353,5 +353,5 @@ int main() {
   test_running_out();
   test_word_sizes();
   test_place();
-  //test_roots();
+  test_roots();
 }
