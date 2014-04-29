@@ -255,6 +255,7 @@ struct block_counts roots_block_counts(const struct tlsf_arena * const r) {
   return ans;
 }
 
+/*
 void * allocate(size_t n) {
   return malloc(n);
 }
@@ -262,6 +263,7 @@ void * allocate(size_t n) {
 void deallocate(void * p, size_t unused) {
   free(p);
 }
+*/
 
 /*
 void test_roots() {
@@ -333,16 +335,16 @@ void test_roots() {
 }
 */
 
-/*
+
 void test_running_out() {
-  //void * b = malloc(sizeof(struct roots) + sizeof(struct block) + 16);
-  struct tlsf_arena * const foo = tlsf_create(allocate, deallocate);
+  const size_t n = sizeof(struct tlsf_arena) + 2*sizeof(struct block);
+  void * b = malloc(n);
+  struct tlsf_arena * const foo = tlsf_create(b, n);
   for (size_t i = 0; i < 15; ++i) {
-    const void * const dummy = tlsf_malloc(foo, 1 << i);
+    (void)tlsf_malloc(foo, 1 << i);
   }
-  tlsf_destroy(foo);
+  free(b);
 }
-*/
 
 int main() {
   //test_running_out();

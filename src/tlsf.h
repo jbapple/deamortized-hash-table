@@ -13,7 +13,7 @@ struct tlsf_arena;
 
 // tlsf_create uses an existing block of allocated memory to
 // initialize a TLSF arena and some free blocks.
-struct tlsf_arena * tlsf_create(void *, size_t);
+struct tlsf_arena * tlsf_create(char *, size_t);
 
 void tlsf_augment(struct tlsf_arena *, void *, size_t);
 

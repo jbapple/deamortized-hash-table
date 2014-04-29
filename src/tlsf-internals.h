@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#include "tlsf.h"
+
 // The number of bytes in a word
 #define word_bytes sizeof(size_t)
 // The number of bits in a word
