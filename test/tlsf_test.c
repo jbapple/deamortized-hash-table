@@ -291,43 +291,43 @@ void test_roots() {
     size_t top = 0;
     for (size_t i = 0; i < most; ++i) {
       size_t n = exp(rword() % (size_t)log(most));
-      //const struct block_counts before_count = roots_block_counts(r);
+      const struct block_counts before_count = roots_block_counts(r);
       test_roots_valid(r, NULL);
       tracked[top++] = tlsf_malloc(r, n);
-      //const struct block_counts after_count = roots_block_counts(r);
+      const struct block_counts after_count = roots_block_counts(r);
       //const size_t actual_total = roots_contiguous_managed_size(r, ((struct block *)tracked[top-1] - 1));
       //assert ((0 == actual_total) || (total == actual_total));
       test_roots_valid(r, NULL);
       if (NULL != tracked[top-1]) {
         used += n;
-        //if (after_count.used_count != ~0) {
-        //  assert (after_count.used_count == before_count.used_count + 1);
-        //  assert (before_count.free_count - after_count.free_count < 2);
-        //}
+        if (after_count.used_count != ~0ull) {
+          assert (after_count.used_count == before_count.used_count + 1);
+          assert (before_count.free_count - after_count.free_count < 2);
+        }
         for (size_t j = 0; j < n; ++j) {
           ((char *)tracked[top-1])[j] = 0xff;
         }
       } else {
-        //assert (after_count.used_count == before_count.used_count);
-        //assert (after_count.free_count == before_count.free_count);
+        assert (after_count.used_count == before_count.used_count);
+        assert (after_count.free_count == before_count.free_count);
         // TODO: track how big when malloc fails
         printf("used %zu %zu\n", used, used + n);
         used -= block_get_size((struct block *)(tracked[top-1]) - 1);
         tlsf_free(r,tracked[top-1]);
-        //const struct block_counts post_count = roots_block_counts(r);
-        //assert (post_count.used_count + 1 == after_count.used_count);
-        //assert (post_count.free_count + 1 - after_count.free_count < 3);
+        const struct block_counts post_count = roots_block_counts(r);
+        assert (post_count.used_count + 1 == after_count.used_count);
+        assert (post_count.free_count + 1 - after_count.free_count < 3);
         //assert (roots_contiguous_managed_size(r, NULL) == total);
         test_roots_valid(r, NULL);
         if (top > 0) --top;
       }
     }
     while (top > 0) {
-      //const struct block_counts before_count = roots_block_counts(r);
+      const struct block_counts before_count = roots_block_counts(r);
       tlsf_free(r, tracked[--top]);
-      //const struct block_counts after_count = roots_block_counts(r);
-      //assert (after_count.used_count + 1 == before_count.used_count);
-      //assert (after_count.free_count + 1 - before_count.free_count < 3);
+      const struct block_counts after_count = roots_block_counts(r);
+      assert (after_count.used_count + 1 == before_count.used_count);
+      assert (after_count.free_count + 1 - before_count.free_count < 3);
       //assert (roots_contiguous_managed_size(r, NULL) == total);
       test_roots_valid(r, NULL);
     }
